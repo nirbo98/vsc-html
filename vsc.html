@@ -1695,8 +1695,19 @@ function FlashCardsTab() {
   const [selectedCategories, setSelectedCategories] = useState(new Set(ALL_FC_CATEGORIES));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [knownCards, setKnownCards] = useState(new Set());
-  const [unknownCards, setUnknownCards] = useState(new Set());
+  const [knownCards, setKnownCards] = useState(function() {
+    try { var s = JSON.parse(localStorage.getItem("fc_known") || "[]"); return new Set(s); } catch(e) { return new Set(); }
+  });
+  const [unknownCards, setUnknownCards] = useState(function() {
+    try { var s = JSON.parse(localStorage.getItem("fc_unknown") || "[]"); return new Set(s); } catch(e) { return new Set(); }
+  });
+
+  useEffect(function() {
+    localStorage.setItem("fc_known", JSON.stringify([...knownCards]));
+  }, [knownCards]);
+  useEffect(function() {
+    localStorage.setItem("fc_unknown", JSON.stringify([...unknownCards]));
+  }, [unknownCards]);
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [shuffled, setShuffled] = useState(false);
   const [filterMode, setFilterMode] = useState("all");
@@ -1765,6 +1776,8 @@ function FlashCardsTab() {
     setUnknownCards(new Set());
     setCurrentIndex(0);
     setIsFlipped(false);
+    localStorage.removeItem("fc_known");
+    localStorage.removeItem("fc_unknown");
   };
 
   var toggleCategory = function(cat) {
