@@ -12,6 +12,7 @@
       #root button { min-height: 44px !important; }
       #root div, #root span, #root p { word-break: break-word; overflow-wrap: break-word; }
     }
+    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
   </style>
   <script>
   window.onerror = function(msg, url, line, col, err) {
@@ -1688,10 +1689,106 @@ const FC_CATEGORY_COLORS = {
   "אתיקה במחקר": {bg:"#F0F9FF",accent:"#0EA5E9",text:"#0369A1"}
 };
 
+// Category to topic ID mapping for AI questions
+var FC_CATEGORY_TO_TOPIC = {
+  "השיטה המדעית": 1,
+  "מהימנות המדידה": 2,
+  "תוקף המדידה": 3,
+  "תוקף תוצאות המחקר": 4,
+  "איומים על תוקף פנימי": 5,
+  "מערכי מחקר": 6,
+  "הטיות במחקר": 5,
+  "אתיקה במחקר": 6
+};
+
+// ===================================================================
+// SECTION 3.7: AI QUESTION GENERATOR MODULE
+// ===================================================================
+var AI_MODEL_ID = "Phi-3.5-mini-instruct-q4f16_1-MLC";
+var aiEngineInstance = null;
+
+function loadWebLLMLibrary() {
+  return new Promise(function(resolve, reject) {
+    if (window.webllm) { resolve(window.webllm); return; }
+    var script = document.createElement("script");
+    script.type = "module";
+    script.textContent = 'import * as webllm from "https://esm.run/@mlc-ai/web-llm";window.webllm=webllm;window.dispatchEvent(new Event("webllm-loaded"));';
+    window.addEventListener("webllm-loaded", function() { resolve(window.webllm); }, { once: true });
+    script.onerror = function() { reject(new Error("Failed to load WebLLM library")); };
+    document.head.appendChild(script);
+  });
+}
+
+function initAIModel(onProgress) {
+  return loadWebLLMLibrary().then(function(webllm) {
+    var engine = new webllm.MLCEngine();
+    return engine.reload(AI_MODEL_ID, {
+      initProgressCallback: function(report) {
+        if (onProgress) onProgress(report);
+      }
+    }).then(function() {
+      aiEngineInstance = engine;
+      return engine;
+    });
+  });
+}
+
+function generateAIQuestion(card) {
+  if (!aiEngineInstance) return Promise.reject(new Error("AI model not loaded"));
+
+  var prompt = "אתה מומחה בשיטות מחקר בפסיכולוגיה. צור שאלת תרגול מבוססת תרחיש מחקרי מציאותי.\n\n" +
+    "מושג: " + card.front + "\n" +
+    "הסבר: " + card.back + "\n" +
+    "קטגוריה: " + card.category + "\n\n" +
+    "הנחיות:\n" +
+    "1. צור תרחיש מחקרי מציאותי ומפורט\n" +
+    "2. צור 4 אפשרויות תשובה, רק אחת נכונה\n" +
+    "3. הסבר מפורט לתשובה הנכונה\n" +
+    "4. כתוב הכל בעברית\n" +
+    "5. בשדה internalNotes כתוב את תהליך החשיבה שלך\n\n" +
+    'החזר JSON בלבד בפורמט:\n{"text":"שאלה עם תרחיש","options":["א","ב","ג","ד"],"correct":0,"explanation":"הסבר","internalNotes":"תהליך חשיבה"}';
+
+  return aiEngineInstance.chat.completions.create({
+    messages: [
+      { role: "system", content: "You are a psychology research methods expert. Always respond with valid JSON only, no markdown, no extra text." },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.7,
+    max_tokens: 1024
+  }).then(function(reply) {
+    var raw = reply.choices[0].message.content.trim();
+    // Try to extract JSON if wrapped in markdown code block
+    var jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in AI response");
+    var parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.text || !Array.isArray(parsed.options) || parsed.options.length !== 4 || typeof parsed.correct !== "number") {
+      throw new Error("Invalid question format from AI");
+    }
+    return {
+      id: 10000 + Date.now() % 90000,
+      topic: FC_CATEGORY_TO_TOPIC[card.category] || 1,
+      difficulty: "AI",
+      text: parsed.text,
+      options: parsed.options,
+      correct: parsed.correct,
+      explanation: parsed.explanation || "",
+      internalNotes: parsed.internalNotes || "",
+      isAI: true,
+      sourceCard: card.id
+    };
+  });
+}
+
 // ===================================================================
 // SECTION 3.6: FLASH CARDS COMPONENT
 // ===================================================================
-function FlashCardsTab() {
+function FlashCardsTab(props) {
+  var onGenerateAI = props.onGenerateAI;
+  var aiThinking = props.aiThinking;
+  var aiModelReady = props.aiModelReady;
+  var onLoadModel = props.onLoadModel;
+  var aiLoading = props.aiLoading;
+  var aiLoadProgress = props.aiLoadProgress;
   const [selectedCategories, setSelectedCategories] = useState(new Set(ALL_FC_CATEGORIES));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -1916,6 +2013,31 @@ function FlashCardsTab() {
             React.createElement("button", {onClick:markKnown,style:{flex:1,maxWidth:200,padding:"14px 0",borderRadius:14,border:"2px solid "+THEME.correct,background:THEME.correctBg,color:"#86efac",cursor:"pointer",fontSize:16,fontWeight:700,fontFamily:"inherit"}},
               "✓ ידעתי"
             )
+          ),
+          // AI Challenge button
+          React.createElement("div", {style:{display:"flex",justifyContent:"center",marginBottom:16}},
+            !aiModelReady && !aiLoading ?
+              React.createElement("button", {
+                onClick: onLoadModel,
+                style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}
+              }, "\uD83E\uDD16 טען מודל AI לייצור שאלות")
+            : aiLoading ?
+              React.createElement("div", {style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",fontSize:14,fontWeight:600,fontFamily:"inherit",textAlign:"center"}},
+                React.createElement("div", {style:{marginBottom:6}}, aiLoadProgress),
+                React.createElement("div", {style:{width:"100%",height:6,borderRadius:3,background:"#1e1b4b",overflow:"hidden"}},
+                  React.createElement("div", {style:{height:"100%",borderRadius:3,background:"linear-gradient(90deg,#8B5CF6,#a78bfa)",transition:"width 0.3s",width:"100%",animation:"pulse 1.5s ease-in-out infinite"}})
+                )
+              )
+            : aiThinking ?
+              React.createElement("button", {
+                disabled: true,
+                style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",fontSize:14,fontWeight:700,fontFamily:"inherit",cursor:"wait",opacity:0.8}
+              }, "\uD83E\uDD16 AI חושב...")
+            :
+              React.createElement("button", {
+                onClick: function() { if (currentCard) onGenerateAI(currentCard); },
+                style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}
+              }, "\uD83E\uDD16 אתגר אותי על המושג הזה ב-AI")
           ),
           // Navigation
           React.createElement("div", {style:{display:"flex",gap:12,justifyContent:"center",alignItems:"center",marginBottom:20}},
@@ -2272,7 +2394,9 @@ function QuizQuestion({
     topic: q.topic
   }), /*#__PURE__*/React.createElement(DiffBadge, {
     difficulty: q.difficulty
-  })), /*#__PURE__*/React.createElement("div", {
+  }), q.isAI && React.createElement("span", {
+    style: {fontSize:11,fontWeight:700,color:"#c4b5fd",background:"rgba(139,92,246,0.15)",border:"1px solid rgba(139,92,246,0.3)",padding:"2px 8px",borderRadius:6}
+  }, "\uD83E\uDD16 AI")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 15,
       lineHeight: 1.9,
@@ -2383,7 +2507,13 @@ function QuizQuestion({
     dangerouslySetInnerHTML: {
       __html: q.explanation
     }
-  })));
+  }), q.internalNotes && React.createElement("div", {
+    style: {marginTop:12,padding:"12px 14px",borderRadius:10,background:"rgba(139,92,246,0.08)",border:"1px solid rgba(139,92,246,0.2)"}
+  }, React.createElement("div", {
+    style: {fontSize:11,fontWeight:700,color:"#c4b5fd",marginBottom:6,display:"flex",alignItems:"center",gap:6}
+  }, "\uD83E\uDDE0 תהליך חשיבה של ה-AI"), React.createElement("div", {
+    style: {fontSize:12.5,color:"#a5b4c8",lineHeight:1.8}
+  }, q.internalNotes))));
 }
 
 // ===================================================================
@@ -2408,6 +2538,49 @@ function ResearchMethodsTool() {
   const [showSearch, setShowSearch] = useState(false);
   const contentRef = useRef(null);
 
+  // AI state
+  const [aiQuestions, setAiQuestions] = useState(function() {
+    try { return JSON.parse(localStorage.getItem("ai_questions") || "[]"); }
+    catch(e) { return []; }
+  });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiModelReady, setAiModelReady] = useState(false);
+  const [aiLoadProgress, setAiLoadProgress] = useState("");
+  const [aiThinking, setAiThinking] = useState(false);
+
+  useEffect(function() {
+    localStorage.setItem("ai_questions", JSON.stringify(aiQuestions));
+  }, [aiQuestions]);
+
+  var handleLoadAIModel = useCallback(function() {
+    if (aiModelReady || aiLoading) return;
+    setAiLoading(true);
+    setAiLoadProgress("טוען ספריית AI...");
+    initAIModel(function(report) {
+      setAiLoadProgress(report.text || "טוען מודל...");
+    }).then(function() {
+      setAiModelReady(true);
+      setAiLoading(false);
+      setAiLoadProgress("");
+    }).catch(function(err) {
+      setAiLoading(false);
+      setAiLoadProgress("");
+      alert("שגיאה בטעינת מודל AI: " + err.message);
+    });
+  }, [aiModelReady, aiLoading]);
+
+  var handleGenerateAIQuestion = useCallback(function(card) {
+    if (!aiModelReady || aiThinking) return;
+    setAiThinking(true);
+    generateAIQuestion(card).then(function(question) {
+      setAiQuestions(function(prev) { return [question].concat(prev); });
+      setAiThinking(false);
+    }).catch(function(err) {
+      setAiThinking(false);
+      alert("שגיאה ביצירת שאלה: " + err.message);
+    });
+  }, [aiModelReady, aiThinking]);
+
   // ---- Mobile detection ----
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
   useEffect(() => {
@@ -2418,6 +2591,13 @@ function ResearchMethodsTool() {
 
   // ---- Derived data ----
   const filteredQuestions = useMemo(() => {
+    if (quizMode === "ai") {
+      let qs = aiQuestions;
+      if (quizFilter !== "all") {
+        qs = qs.filter(q => q.topic === parseInt(quizFilter));
+      }
+      return qs;
+    }
     let qs = QUESTIONS;
     if (quizFilter !== "all") {
       qs = qs.filter(q => q.topic === parseInt(quizFilter));
@@ -2429,7 +2609,7 @@ function ResearchMethodsTool() {
       qs = qs.filter(q => answers[q.id] && !answers[q.id].correct);
     }
     return qs;
-  }, [quizFilter, quizMode, bookmarks, answers]);
+  }, [quizFilter, quizMode, bookmarks, answers, aiQuestions]);
   const stats = useMemo(() => {
     const answered = Object.keys(answers).length;
     const correct = Object.values(answers).filter(a => a.correct).length;
@@ -3053,6 +3233,10 @@ function ResearchMethodsTool() {
     key: "wrong",
     label: "❌ טעויות",
     desc: `(${stats.wrong})`
+  }, {
+    key: "ai",
+    label: "\uD83E\uDD16 שאלות AI",
+    desc: `(${aiQuestions.length})`
   }].map(m => /*#__PURE__*/React.createElement("button", {
     key: m.key,
     onClick: () => setQuizMode(m.key),
@@ -3147,7 +3331,7 @@ function ResearchMethodsTool() {
       fontWeight: 600,
       marginBottom: 6
     }
-  }, quizMode === "bookmarks" ? "אין שאלות מסומנות" : quizMode === "wrong" ? "אין טעויות — כל הכבוד!" : "אין שאלות בקטגוריה"), /*#__PURE__*/React.createElement("div", {
+  }, quizMode === "ai" ? "אין שאלות AI עדיין — צור שאלות מהכרטיסיות" : quizMode === "bookmarks" ? "אין שאלות מסומנות" : quizMode === "wrong" ? "אין טעויות — כל הכבוד!" : "אין שאלות בקטגוריה"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13
     }
@@ -3169,7 +3353,7 @@ function ResearchMethodsTool() {
     answered: answers[q.id],
     bookmarked: bookmarks.has(q.id),
     onBookmark: handleBookmark
-  })))), mainTab === "flashcards" && React.createElement(FlashCardsTab, null), mainTab === "progress" && /*#__PURE__*/React.createElement("div", {
+  })))), mainTab === "flashcards" && React.createElement(FlashCardsTab, { onGenerateAI: handleGenerateAIQuestion, aiThinking: aiThinking, aiModelReady: aiModelReady, onLoadModel: handleLoadAIModel, aiLoading: aiLoading, aiLoadProgress: aiLoadProgress }), mainTab === "progress" && /*#__PURE__*/React.createElement("div", {
     style: {
       animation: "fadeSlideIn 0.4s ease",
       paddingBottom: 40
