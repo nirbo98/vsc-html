@@ -12,7 +12,6 @@
       #root button { min-height: 44px !important; }
       #root div, #root span, #root p { word-break: break-word; overflow-wrap: break-word; }
     }
-    @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
   </style>
   <script>
   window.onerror = function(msg, url, line, col, err) {
@@ -1689,106 +1688,266 @@ const FC_CATEGORY_COLORS = {
   "אתיקה במחקר": {bg:"#F0F9FF",accent:"#0EA5E9",text:"#0369A1"}
 };
 
-// Category to topic ID mapping for AI questions
-var FC_CATEGORY_TO_TOPIC = {
-  "השיטה המדעית": 1,
-  "מהימנות המדידה": 2,
-  "תוקף המדידה": 3,
-  "תוקף תוצאות המחקר": 4,
-  "איומים על תוקף פנימי": 5,
-  "מערכי מחקר": 6,
-  "הטיות במחקר": 5,
-  "אתיקה במחקר": 6
-};
-
 // ===================================================================
-// SECTION 3.7: AI QUESTION GENERATOR MODULE
+// SECTION 3.7: AI-GENERATED SCENARIO QUESTIONS
 // ===================================================================
-var AI_MODEL_ID = "Phi-3.5-mini-instruct-q4f16_1-MLC";
-var aiEngineInstance = null;
+const AI_QUESTIONS = [
+// ===== השיטה המדעית — שאלות תרחיש =====
+{id:10001,topic:1,difficulty:"AI",isAI:true,
+text:"פרופסור לפסיכולוגיה חברתית פרסם מחקר שמראה כי אנשים שצופים בסרטי אימה נוטים לקנות יותר ממתקים. עיתונאי כתב: \"סרטי אימה גורמים לאנשים לאכול ממתקים\". מה הבעיה בטענת העיתונאי?",
+options:["העיתונאי הסיק סיבתיות מתוך מחקר מתאמי","העיתונאי לא ציין את גודל המדגם","העיתונאי התעלם מהתוקף הפנימי","העיתונאי לא הבחין בין משתנה תלוי לבלתי תלוי"],
+correct:0,
+explanation:"<strong>מתאם אינו סיבתיות</strong> — המחקר מצא קשר בין צפייה בסרטי אימה לרכישת ממתקים, אך ייתכן שמשתנה שלישי (למשל, ערבי סוף שבוע) גורם לשניהם. ללא תפעול ניסויי אי אפשר להסיק סיבתיות.",
+internalNotes:"השאלה בודקת הבנה של ההבדל בין קשר מתאמי לסיבתי. העיתונאי ביצע את הטעות הקלאסית של הסקת סיבתיות ממתאם."},
+{id:10002,topic:1,difficulty:"AI",isAI:true,
+text:"חוקרת בדקה האם שימוש ברשתות חברתיות משפיע על דימוי גוף. היא חילקה 80 סטודנטיות רנדומלית: 40 גלשו באינסטגרם 30 דקות, ו-40 קראו מאמר ניטרלי. לאחר מכן מילאו שאלון דימוי גוף. מהו המשתנה הבלתי תלוי?",
+options:["ציון דימוי הגוף בשאלון","סוג הפעילות (אינסטגרם / מאמר)","מספר הסטודנטיות בכל קבוצה","משך הזמן של 30 דקות"],
+correct:1,
+explanation:"<strong>המשתנה הבלתי תלוי</strong> הוא המשתנה שהחוקרת תפעלה — סוג הפעילות. קבוצה אחת גלשה באינסטגרם וקבוצה שנייה קראה מאמר. זהו מערך ניסויי כי בוצע תפעול + השמה רנדומלית.",
+internalNotes:"זיהוי משתנה בלתי תלוי במערך ניסויי. המשתנה התלוי הוא ציון דימוי הגוף, והבלתי תלוי הוא מה שתופעל."},
+{id:10003,topic:1,difficulty:"AI",isAI:true,
+text:"מחקר מצא שילדים שמנגנים על כלי נגינה מצליחים יותר במתמטיקה. חוקר טען שנגינה מפתחת חשיבה מתמטית. חוקרת אחרת טענה שהורים משכילים גם שולחים ילדים לשיעורי נגינה וגם עוזרים להם במתמטיקה. טענת החוקרת מתארת:",
+options:["קשר סיבתי ישיר","קשר מתווך","קשר מזויף","קשר מותנה"],
+correct:2,
+explanation:"<strong>קשר מזויף (Spurious)</strong> — החוקרת טוענת שמשתנה שלישי (השכלת ההורים) גורם גם לנגינה וגם להצלחה במתמטיקה. הקשר הנצפה בין נגינה למתמטיקה אינו אמיתי אלא נובע ממשתנה שלישי.",
+internalNotes:"הבחנה בין סוגי קשרים. קשר מזויף = משתנה שלישי גורם לשני המשתנים שנצפו."},
+{id:10004,topic:1,difficulty:"AI",isAI:true,
+text:"מחקר בדק את הקשר בין שעות שינה לביצועים אקדמיים. נמצא שהקשר חזק יותר בקרב סטודנטים עם רמת חרדה גבוהה, וחלש בקרב סטודנטים עם רמת חרדה נמוכה. איזה סוג קשר מתואר?",
+options:["קשר מזויף — חרדה גורמת לשניהם","קשר מתווך — חרדה מתווכת בין שינה לביצועים","קשר מותנה — חרדה מנחה את עוצמת הקשר","קשר סיבתי ישיר — שינה גורמת לביצועים"],
+correct:2,
+explanation:"<strong>קשר מותנה (Moderated)</strong> — רמת החרדה משמשת כמשתנה מנחה (Moderator). היא לא חלק מהשרשרת הסיבתית, אלא קובעת את עוצמת הקשר בין שינה לביצועים.",
+internalNotes:"הקשר בין שינה לביצועים תלוי ברמת החרדה — זה הגדרה של קשר מותנה. המנחה לא מתווך אלא משנה את העוצמה."},
+{id:10005,topic:1,difficulty:"AI",isAI:true,
+text:"חוקרת מצאה שאימון בקשיבות (Mindfulness) מפחית סטרס. היא רוצה לבדוק אם הירידה בסטרס קורה כי קשיבות מגבירה ויסות רגשי, שבתורו מפחית סטרס. מהו המשתנה המתווך?",
+options:["אימון בקשיבות","רמת הסטרס","ויסות רגשי","סוג אימון הקשיבות"],
+correct:2,
+explanation:"<strong>משתנה מתווך</strong> — ויסות רגשי נמצא בשרשרת: קשיבות → ויסות רגשי → הפחתת סטרס. המתווך מסביר את המנגנון דרכו המשתנה הבלתי תלוי משפיע על התלוי.",
+internalNotes:"זיהוי מתווך בשרשרת סיבתית A→C→B. ויסות רגשי הוא C שדרכו עוברת ההשפעה."},
+{id:10006,topic:1,difficulty:"AI",isAI:true,
+text:"חוקר רצה לבדוק אם קריאת ספרים משפרת אמפתיה. הוא גייס 60 מתנדבים: 30 קראו ספרי רומן, ו-30 לא קראו כלום. לאחר חודש, מילאו שאלון אמפתיה. מהי קבוצת הביקורת ומאיזה סוג?",
+options:["קבוצה שלא קראה — ביקורת ריקה","קבוצה שלא קראה — ביקורת פלסבו","קבוצה שקראה רומנים — ביקורת השוואה","אין קבוצת ביקורת במחקר זה"],
+correct:0,
+explanation:"<strong>ביקורת ריקה</strong> — הקבוצה שלא קראה כלום לא עשתה פעולה חלופית. פלסבו היה אם קראו טקסט שנראה כמו ספר אך חסר תוכן רגשי. השוואה היתה אם קראו סוגה אחרת.",
+internalNotes:"ביקורת ריקה = לא עושים כלום. פלסבו = תחליף שנראה אותו דבר. השוואה = טיפול חלופי."},
+// ===== מהימנות המדידה — שאלות תרחיש =====
+{id:10007,topic:2,difficulty:"AI",isAI:true,
+text:"חוקרת פיתחה שאלון חדש למדידת ביטחון עצמי. היא נתנה את השאלון לקבוצת סטודנטים, ולאחר שבועיים נתנה להם שוב את אותו שאלון. המתאם בין שתי המדידות היה r=0.45. מה מסקנתה?",
+options:["השאלון תקף אך לא מהימן","השאלון בעל מהימנות מבחן-חוזר נמוכה","השאלון בעל עקיבות פנימית נמוכה","השאלון בעל תוקף ניבוי נמוך"],
+correct:1,
+explanation:"<strong>מהימנות מבחן-חוזר (Test-Retest)</strong> — אותו כלי ניתן לאותם נבדקים בשתי נקודות זמן. מתאם של 0.45 נחשב נמוך, מה שמעיד על חוסר יציבות של המדידה לאורך זמן.",
+internalNotes:"אותו שאלון, אותם נבדקים, שני מועדים = מבחן-חוזר. r=0.45 נמוך מדי למהימנות טובה."},
+{id:10008,topic:2,difficulty:"AI",isAI:true,
+text:"פסיכולוג קליני פיתח כלי לאבחון דיכאון. שני פסיכולוגים שונים צפו באותם 30 מטופלים ודירגו את רמת הדיכאון שלהם. המתאם בין הדירוגים היה r=0.92. איזו מהימנות נבדקה?",
+options:["מהימנות מבחן חוזר","עקיבות פנימית","מהימנות בין שופטים","מהימנות נוסחים מקבילים"],
+correct:2,
+explanation:"<strong>מהימנות בין שופטים</strong> — שני מעריכים שונים העריכו את אותם נבדקים. מתאם גבוה (0.92) מעיד על הסכמה גבוהה בין השופטים, כלומר הכלי מפיק תוצאות עקביות ללא תלות בזהות המעריך.",
+internalNotes:"שני שופטים/מעריכים → מהימנות בין שופטים. אם היה אותו שופט בשני זמנים → מבחן חוזר."},
+{id:10009,topic:2,difficulty:"AI",isAI:true,
+text:"חוקר בדק שאלון עם 40 שאלות למדידת חרדה חברתית. הוא חישב אלפא קרונבאך וקיבל α=0.91. עם זאת, כשהשווה את התוצאות לשאלון חרדה חברתית מתוקף אחר, המתאם היה r=0.35 בלבד. מה ניתן להסיק?",
+options:["השאלון מהימן אך חסר תוקף מתכנס","השאלון לא מהימן ולא תקף","השאלון תקף אך לא מהימן","השאלון בעל מהימנות בין שופטים נמוכה"],
+correct:0,
+explanation:"אלפא קרונבאך גבוהה (0.91) = <strong>עקיבות פנימית גבוהה</strong> = מהימן. אך מתאם נמוך (0.35) עם כלי מתוקף למשתנה זהה = <strong>תוקף מתכנס נמוך</strong>. מהימנות היא תנאי הכרחי אך לא מספיק לתוקף.",
+internalNotes:"α גבוהה = מהימן. r נמוך עם כלי מקביל = תוקף מתכנס נמוך. זו דוגמה קלאסית לכלי מהימן אך לא תקף."},
+{id:10010,topic:2,difficulty:"AI",isAI:true,
+text:"חוקרת חילקה שאלון 50 פריטים לשני חלקים: פריטים זוגיים ואי-זוגיים. המתאם בין שני החלקים היה r=0.88. איזו מהימנות נבדקה?",
+options:["מבחן-חוזר","נוסחים מקבילים","מבחן חצוי","אלפא קרונבאך"],
+correct:2,
+explanation:"<strong>מהימנות מבחן חצוי (Split-Half)</strong> — חלוקת המבחן לשני חצאים (זוגיים/אי-זוגיים) ובדיקת המתאם ביניהם. זו שיטה לבדיקת עקיבות פנימית ממדידה אחת בלבד.",
+internalNotes:"חלוקת פריטים לשניים מתוך מדידה אחת = מבחן חצוי. אלפא קרונבאך היא ממוצע כל החצויים האפשריים."},
+{id:10011,topic:2,difficulty:"AI",isAI:true,
+text:"נבנו שני נוסחים של מבחן ידע בסטטיסטיקה, כל אחד 30 שאלות. שני הנוסחים ניתנו לאותה קבוצת 100 סטודנטים. המתאם בין הציונים בשני הנוסחים היה r=0.82. מהי המהימנות שנבדקה?",
+options:["מבחן-חוזר","נוסחים מקבילים","עקיבות פנימית","מהימנות בין שופטים"],
+correct:1,
+explanation:"<strong>מהימנות נוסחים מקבילים</strong> — שני נוסחים שונים אך שקולים ניתנו לאותם נבדקים. מתאם גבוה מעיד ששני הנוסחים מודדים את אותו דבר באופן עקבי.",
+internalNotes:"שני נוסחים שונים, אותם נבדקים = נוסחים מקבילים. אם היה אותו נוסח פעמיים = מבחן חוזר."},
+// ===== תוקף המדידה — שאלות תרחיש =====
+{id:10012,topic:3,difficulty:"AI",isAI:true,
+text:"חוקר פיתח שאלון למדידת 'אינטליגנציה רגשית'. הוא מצא מתאם גבוה (r=0.78) בין השאלון שלו לבין שאלון אמפתיה מתוקף. כמו כן, מצא מתאם נמוך (r=0.12) בין השאלון שלו לבין מבחן חשבון. מה ניתן להסיק?",
+options:["תוקף מבנה גבוה — תוקף מתכנס ומבחין טובים","תוקף תוכן גבוה בלבד","תוקף ניבוי גבוה","מהימנות גבוהה אך תוקף נמוך"],
+correct:0,
+explanation:"<strong>תוקף מבנה גבוה</strong> כולל: (1) <strong>תוקף מתכנס</strong> — מתאם גבוה עם כלי המודד מושג קרוב (אמפתיה); (2) <strong>תוקף מבחין</strong> — מתאם נמוך עם כלי המודד מושג שונה (חשבון).",
+internalNotes:"תוקף מבנה = מתכנס + מבחין. מתאם גבוה עם משתנה דומה = מתכנס. מתאם נמוך עם משתנה שונה = מבחין."},
+{id:10013,topic:3,difficulty:"AI",isAI:true,
+text:"מנהלת בית ספר רוצה לנבא הצלחה אקדמית של תלמידים בכיתה י'. היא נתנה מבחן כישורים בכיתה ט' ובדקה את המתאם בין הציונים במבחן לבין הממוצע בכיתה י'. המתאם היה r=0.72. איזה תוקף נבדק?",
+options:["תוקף תוכן","תוקף מתכנס","תוקף ניבוי","תוקף נראה"],
+correct:2,
+explanation:"<strong>תוקף ניבוי (Predictive Validity)</strong> — הכלי ניתן בזמן מוקדם (כיתה ט') וההצלחה נמדדת מאוחר יותר (כיתה י'). מתאם גבוה מעיד שהכלי מנבא היטב ביצוע עתידי.",
+internalNotes:"המפתח הוא ציר הזמן — כלי בזמן A מנבא תוצאה בזמן B. זה מבחין תוקף ניבוי מתוקף מתכנס."},
+{id:10014,topic:3,difficulty:"AI",isAI:true,
+text:"פסיכולוגית בנתה שאלון לזיהוי שחיקה תעסוקתית. היא שלחה את השאלון ל-5 מומחים בתחום, שבחנו אם כל שאלה מייצגת היבט של שחיקה. 4 מתוך 5 מומחים הסכימו שהפריטים מכסים את התחום. איזה תוקף נבדק?",
+options:["תוקף מבנה","תוקף ניבוי","תוקף תוכן","תוקף נראה"],
+correct:2,
+explanation:"<strong>תוקף תוכן</strong> — מומחים בוחנים אם הפריטים מייצגים את עולם התוכן של המשתנה. זהו ניתוח איכותני ולא כמותי. תוקף נראה היה אם שואלים את הנבדקים (לא מומחים).",
+internalNotes:"מומחים בוחנים ייצוגיות פריטים = תוקף תוכן. נבדקים מעריכים = תוקף נראה. ההבדל הוא מי השופט."},
+{id:10015,topic:3,difficulty:"AI",isAI:true,
+text:"שאלון שביעות רצון מהעבודה כולל את השאלה: 'האם אתה מרוצה מהעבודה שלך?' עובד קורא את השאלה ומיד מבין מה מודדים. יתרה מזו — הוא עונה בצורה חיובית יותר כי הוא יודע שהבוס יראה את התוצאות. מה הבעיה?",
+options:["תוקף ניבוי נמוך מדי","תוקף נראה גבוה מדי שגורם להטיית רציה חברתית","תוקף מבחין נמוך","מהימנות נמוכה"],
+correct:1,
+explanation:"<strong>תוקף נראה גבוה מדי</strong> — כשהנבדק מזהה בקלות מה מודדים, הוא עלול לשנות את תשובותיו בהתאם (רציה חברתית). לכן תוקף נראה גבוה מדי הוא דווקא בעייתי.",
+internalNotes:"תוקף נראה = הנבדק רואה מה מודדים. גבוה מדי = הטיה. זה שונה מתוקף תוכן שבודק מומחה."},
+// ===== תוקף תוצאות המחקר — שאלות תרחיש =====
+{id:10016,topic:4,difficulty:"AI",isAI:true,
+text:"חוקר ביצע ניסוי בקמפוס אוניברסיטה ומצא שתרגילי נשימה מפחיתים חרדה. הוא רוצה לטעון שהשיטה תעבוד גם על אנשים מבוגרים, בסביבה תעסוקתית, ובמדינות אחרות. על איזה תוקף הטענה?",
+options:["תוקף פנימי","תוקף חיצוני","תוקף סטטיסטי","תוקף מבנה"],
+correct:1,
+explanation:"<strong>תוקף חיצוני</strong> — המידה שבה ניתן להכליל את תוצאות המחקר מעבר למדגם המקורי: לאוכלוסיות אחרות (מבוגרים), מצבים אחרים (עבודה), וזמנים/מקומות אחרים.",
+internalNotes:"הכללה = תוקף חיצוני. פנימי = האם המניפולציה גרמה לתוצאה. חיצוני = האם זה גם מעבר לניסוי."},
+{id:10017,topic:4,difficulty:"AI",isAI:true,
+text:"במחקר על שיטת לימוד חדשה, נמצא הבדל מובהק בין קבוצת הניסוי לביקורת (p=0.03, n=200). חוקר שני חזר על המחקר עם 15 נבדקים ולא מצא הבדל מובהק. מהו ההסבר הסביר ביותר?",
+options:["שיטת הלימוד לא עובדת באמת","המחקר השני סבל מעוצמה סטטיסטית נמוכה","המחקר הראשון ביצע טעות מסוג I","תוקף המבנה במחקר השני היה נמוך"],
+correct:1,
+explanation:"<strong>עוצמה סטטיסטית נמוכה</strong> — עם מדגם של 15 בלבד, הסיכוי לגלות אפקט אמיתי נמוך מאוד (טעות מסוג II). מדגם קטן = עוצמה נמוכה = איום על התוקף הסטטיסטי.",
+internalNotes:"n=15 מול n=200. מדגם קטן מוביל לעוצמה נמוכה ולטעות מסוג II — אי זיהוי אפקט שקיים."},
+{id:10018,topic:4,difficulty:"AI",isAI:true,
+text:"חוקרת מדדה 'רווחה נפשית' באמצעות שאלה אחת: 'מ-1 עד 10, כמה אתה מאושר?'. הניסוי תוכנן היטב (רנדומיזציה, קבוצת ביקורת). איזה תוקף עלול להיות מאוים?",
+options:["תוקף פנימי","תוקף חיצוני","תוקף סטטיסטי","תוקף מבנה"],
+correct:3,
+explanation:"<strong>תוקף מבנה</strong> — 'רווחה נפשית' היא מושג רחב ומורכב שכולל מספר ממדים. מדידה בשאלה אחת של 'אושר' היא הגדרה אופרציונלית צרה מדי שלא הולמת את ההגדרה הנומינלית.",
+internalNotes:"תוקף מבנה = ההתאמה בין ההגדרה הנומינלית לאופרציונלית. שאלה אחת לא יכולה ללכוד מושג מורכב."},
+// ===== איומים על תוקף פנימי — שאלות תרחיש =====
+{id:10019,topic:5,difficulty:"AI",isAI:true,
+text:"חוקר בדק תוכנית התערבות להפחתת דיכאון בקרב קשישים. הוא מדד דיכאון לפני ואחרי 6 חודשים — ללא קבוצת ביקורת. נמצאה ירידה בדיכאון. באותה תקופה הצטרפו הקשישים למועדון חברתי חדש בשכונה. מהו האיום?",
+options:["בשילה","מדידה","היסטוריה","רגרסיה לממוצע"],
+correct:2,
+explanation:"<strong>איום היסטוריה</strong> — אירוע חיצוני (פתיחת מועדון חברתי) התרחש בין שתי המדידות ועלול להסביר את הירידה בדיכאון, במקום תוכנית ההתערבות.",
+internalNotes:"אירוע חיצוני בין מדידות = היסטוריה. בשילה = שינוי טבעי. מדידה = השפעת המדידה עצמה."},
+{id:10020,topic:5,difficulty:"AI",isAI:true,
+text:"חוקרת בדקה תוכנית ליווי לסטודנטים מתקשים. היא בחרה 30 סטודנטים עם הציונים הנמוכים ביותר ונתנה להם ליווי. בסוף הסמסטר, ציוניהם עלו. ללא קבוצת ביקורת — האם ניתן להסיק שהליווי עזר?",
+options:["כן, כי הציונים עלו באופן מובהק","לא, בגלל איום רגרסיה לממוצע","לא, בגלל איום ברירה","כן, כי נבחרו הסטודנטים הכי חלשים"],
+correct:1,
+explanation:"<strong>רגרסיה לממוצע</strong> — כשבוחרים את הציונים הקיצוניים ביותר (הנמוכים), יש נטייה סטטיסטית טבעית שהציונים יתקרבו לממוצע במדידה הבאה, גם ללא התערבות.",
+internalNotes:"בחירת קיצוניים + שיפור = רגרסיה לממוצע. הסטודנטים נבחרו כי הם קיצוניים, לא רנדומלית."},
+{id:10021,topic:5,difficulty:"AI",isAI:true,
+text:"במחקר על אימון קוגניטיבי, קבוצת הניסוי וקבוצת הביקורת הוקצו רנדומלית. במהלך המחקר, 12 נבדקים מקבוצת הביקורת פרשו כי הרגישו ש'לא מקבלים כלום'. מהו האיום?",
+options:["ברירה","דיפוזיה","דה-מורליזציה ונשירה","היסטוריה מקומית"],
+correct:2,
+explanation:"<strong>דה-מורליזציה + נשירה</strong> — נבדקי הביקורת איבדו מוטיבציה כי ידעו שלא מקבלים טיפול (דה-מורליזציה), ולכן נשרו באופן שיטתי (נשירה). שתי הבעיות יחד מאיימות על התוקף הפנימי.",
+internalNotes:"נשירה שיטתית מקבוצת הביקורת + הסיבה היא חוסר מוטיבציה = דה-מורליזציה + נשירה."},
+{id:10022,topic:5,difficulty:"AI",isAI:true,
+text:"בניסוי בבית ספר, כיתה א' קיבלה שיטת הוראה חדשה וכיתה ב' המשיכה בשיטה הרגילה. בהפסקות, תלמידי כיתה א' סיפרו לתלמידי כיתה ב' על השיטה החדשה, ותלמידי כיתה ב' התחילו ליישם אותה בעצמם. מהו האיום?",
+options:["היסטוריה מקומית","דיפוזיה","תחרות מפצה","השוואה מפצה"],
+correct:1,
+explanation:"<strong>דיפוזיה</strong> — חילופי מידע בין הקבוצות. תלמידי הביקורת קיבלו מידע על הטיפול הניסויי, מה שטשטש את ההבדל בין הקבוצות והקטין את האפקט הנצפה.",
+internalNotes:"חילופי מידע בין קבוצות = דיפוזיה. אם הביקורת היו משקיעים יותר מאמץ מעצמם = תחרות מפצה."},
+{id:10023,topic:5,difficulty:"AI",isAI:true,
+text:"חוקר נתן מבחן IQ לקבוצת ילדים, ואז שוב אחרי חצי שנה. הציונים עלו. אין קבוצת ביקורת. מהו האיום הסביר ביותר?",
+options:["היסטוריה","מדידה","ברירה","דיפוזיה"],
+correct:1,
+explanation:"<strong>איום מדידה (Testing)</strong> — עצם המבחן הראשון גרם לילדים ללמוד ממנו (להכיר את סוגי השאלות, להתאמן). לכן הם שיפרו את ביצועיהם במבחן השני — לא בגלל שיפור אמיתי ב-IQ.",
+internalNotes:"אותו מבחן פעמיים ללא ביקורת. המבחן הראשון 'לימד' את הנבדקים = איום מדידה."},
+// ===== מערכי מחקר — שאלות תרחיש =====
+{id:10024,topic:6,difficulty:"AI",isAI:true,
+text:"חוקרת רצתה לבדוק השפעת שיטת לימוד חדשה. היא בחרה כיתה אחת, לימדה בשיטה החדשה, ומדדה ידע בסוף. ללא מדידה מקדימה וללא קבוצת ביקורת. מהו מערך המחקר?",
+options:["לפני-אחרי (One Group Pretest-Posttest)","ניתוח מקרה (One-Shot Case Study)","מערך קוואזי-ניסויי","מערך ניסויי אמיתי"],
+correct:1,
+explanation:"<strong>ניתוח מקרה (One-Shot Case Study)</strong> — X O: קבוצה אחת, טיפול אחד, מדידה אחת. אין מדידה מקדימה ואין קבוצת ביקורת. זהו מערך שגוי שלא מאפשר הסקת מסקנות.",
+internalNotes:"X O = ניתוח מקרה. O X O = לפני-אחרי. ההבדל הוא קיום מדידה לפני הטיפול."},
+{id:10025,topic:6,difficulty:"AI",isAI:true,
+text:"חוקר רצה לבדוק את ההשפעה של מדיטציה על ריכוז. הוא מדד ריכוז, נתן 8 שבועות של מדיטציה, ומדד שוב. אין קבוצת ביקורת. מהו המערך ומהם האיומים?",
+options:["ניתוח מקרה — איום ברירה ונשירה","לפני-אחרי — איומי היסטוריה, בשילה, מדידה","ניסויי אמיתי — ללא איומים","קוואזי-ניסויי — איום ברירה בלבד"],
+correct:1,
+explanation:"<strong>מערך לפני-אחרי (O₁ X O₂)</strong> — מדידה לפני, טיפול, מדידה אחרי, אך ללא קבוצת ביקורת. חשוף לאיומי <strong>היסטוריה</strong> (אירועים חיצוניים), <strong>בשילה</strong> (שינויים טבעיים), <strong>מדידה</strong> (למידה מהמבחן).",
+internalNotes:"O X O ללא ביקורת = לפני-אחרי. כל האיומים שרלוונטיים למערך ללא ביקורת חלים כאן."},
+{id:10026,topic:6,difficulty:"AI",isAI:true,
+text:"חוקרת חילקה 120 נבדקים ל-4 קבוצות באופן רנדומלי: (1) טיפול + מדידה לפני, (2) ביקורת + מדידה לפני, (3) טיפול ללא מדידה לפני, (4) ביקורת ללא מדידה לפני. מהו המערך?",
+options:["מערך לפני-אחרי","מערך שתי קבוצות עם רנדומיזציה","מערך ארבע הקבוצות של סולומון","מערך קוואזי-ניסויי"],
+correct:2,
+explanation:"<strong>מערך סולומון</strong> — 4 קבוצות המאפשרות לבודד את אפקט המדידה המקדימה. בהשוואת קבוצות עם ובלי מדידה לפני, ניתן לבדוק אם עצם המדידה השפיעה על התוצאה.",
+internalNotes:"4 קבוצות: 2×2 (טיפול/ביקורת × עם/בלי מדידה לפני) = סולומון. מטרתו לבודד אפקט מדידה."},
+// ===== הטיות במחקר — שאלות תרחיש =====
+{id:10027,topic:5,difficulty:"AI",isAI:true,
+text:"בניסוי תרופתי, הרופא שמחלק את התרופות יודע מי מקבל תרופה אמיתית ומי פלסבו. הוא שואל את המטופלים 'איך אתה מרגיש?' בטון שונה — חם יותר למקבלי התרופה. מהי ההטיה?",
+options:["הטיית נבדק — רציה חברתית","הטיית נסיין — אפקט רוזנטל","הטיית מדידה — מכשור","הטיית ברירה — הבדלים מובנים"],
+correct:1,
+explanation:"<strong>הטיית נסיין (אפקט רוזנטל/פיגמליון)</strong> — הרופא יודע מי בכל קבוצה, וציפיותיו משפיעות על התנהגותו כלפי המטופלים באופן לא מודע. הפתרון: ניסוי עיוור כפול.",
+internalNotes:"הנסיין יודע את ההשתייכות ומשפיע = הטיית נסיין. אם הנבדק היה משנה התנהגות = הטיית נבדק."},
+{id:10028,topic:5,difficulty:"AI",isAI:true,
+text:"במחקר על זיכרון, הנבדקים שמו לב שהם מקבלים קפאין לפני מבחני הזיכרון. הם הניחו שהחוקר רוצה להוכיח שקפאין משפר זיכרון, והשתדלו יותר במבחנים. מהי ההטיה?",
+options:["הטיית נסיין","Demand Characteristics — הטיית נבדק","רציה חברתית","אפקט פלסבו"],
+correct:1,
+explanation:"<strong>Demand Characteristics</strong> — הנבדקים זיהו את מטרת הניסוי מתוך אפיוניו ושינו את התנהגותם בהתאם. הם ניסו 'לעזור' לחוקר לקבל את התוצאה הצפויה.",
+internalNotes:"נבדק מזהה מטרת המחקר ומשנה התנהגות = Demand Characteristics. רציה חברתית = רוצה להיראות טוב חברתית."},
+// ===== אתיקה במחקר — שאלות תרחיש =====
+{id:10029,topic:6,difficulty:"AI",isAI:true,
+text:"חוקר ביצע ניסוי בו הטעה את הנבדקים — אמר להם שזהו מחקר על זיכרון, בעוד שבפועל בדק ציות לסמכות. בסוף הניסוי, הוא לא סיפר להם על ההטעיה כי 'חשש שיתבעו אותו'. מה ההפרה האתית?",
+options:["לא קיבל הסכמה מדעת","לא ביצע דה-בריפינג","לא קיבל אישור ועדת אתיקה","פלישה לפרטיות"],
+correct:1,
+explanation:"<strong>דה-בריפינג</strong> — כאשר נעשה שימוש בהטעיה במחקר, חובה לחשוף את ההונאה לנבדקים בהקדם האפשרי בתום המחקר. אי-ביצוע דה-בריפינג הוא הפרה אתית חמורה.",
+internalNotes:"הטעיה + לא סיפר בסוף = חוסר דה-בריפינג. הסכמה מדעת = לא נתנו מספיק מידע לפני המחקר."},
+{id:10030,topic:6,difficulty:"AI",isAI:true,
+text:"חוקרת רוצה לחקור התמכרויות. היא מתכננת לתת לנבדקים שאלון עם שאלות אישיות מאוד על שימוש בסמים, ולשמור את השאלונים עם שם מלא ותעודת זהות. מהם הסיכונים האתיים?",
+options:["רק פלישה לפרטיות","רק אי-נעימות פסיכולוגית","פלישה לפרטיות ואי-נעימות פסיכולוגית","אין בעיה אתית כי הנבדקים הסכימו"],
+correct:2,
+explanation:"שני סיכונים: (1) <strong>פלישה לפרטיות</strong> — שמירת נתונים רגישים עם פרטים מזהים; (2) <strong>אי-נעימות פסיכולוגית</strong> — שאלות אישיות על התמכרויות עלולות לגרום למצוקה. יש לשמור נתונים בנפרד מזיהוי.",
+internalNotes:"שאלות רגישות = אי-נעימות. נתונים + זיהוי אישי = פלישה לפרטיות. גם עם הסכמה, יש לצמצם סיכונים."},
+// ===== שאלות נוספות - דגימה וסולמות =====
+{id:10031,topic:6,difficulty:"AI",isAI:true,
+text:"חוקרת רוצה לדגום תלמידים מ-50 בתי ספר. היא בחרה באקראי 10 בתי ספר ולקחה את כל התלמידים מכל בית ספר שנבחר. מהי שיטת הדגימה?",
+options:["דגימה שכבתית","דגימה מקרית פשוטה","דגימת אשכולות","דגימת נוחות"],
+correct:2,
+explanation:"<strong>דגימת אשכולות</strong> — בוחרים יחידות שלמות (בתי ספר) באקראי ולוקחים את כל מי שבהן. בדגימה שכבתית היו מחלקים לקבוצות ודוגמים פרטים מכל אחת.",
+internalNotes:"בחירת יחידות שלמות = אשכולות. בחירת פרטים מתוך קבוצות = שכבתית. ההבדל הוא מה נדגם."},
+{id:10032,topic:1,difficulty:"AI",isAI:true,
+text:"חוקר שלח שאלון באינטרנט ו-500 אנשים התנדבו לענות. הוא מצא ש-80% מהמשיבים תומכים ברפורמה בחינוך. האם ניתן להכליל את התוצאה לכלל האוכלוסייה?",
+options:["כן, כי 500 זה מדגם גדול מספיק","לא, כי זו דגימת נוחות עם הטיית מתנדבים","כן, כי השאלון היה באינטרנט ונגיש לכולם","לא, כי לא בוצעה רנדומיזציה לקבוצות"],
+correct:1,
+explanation:"<strong>דגימת נוחות</strong> עם הטיית מתנדבים — רק מי שרצה ענה. מתנדבים שונים מאלו שלא ענו (למשל, יש להם דעות חזקות יותר). גודל מדגם לא מפצה על דגימה לא מייצגת.",
+internalNotes:"מתנדבים באינטרנט = דגימת נוחות. גודל מדגם לא שווה ייצוגיות. הכללה דורשת דגימה מייצגת."},
+{id:10033,topic:1,difficulty:"AI",isAI:true,
+text:"חוקרת רוצה לחקור שביעות רצון של עובדים. היא שולחת שאלון ומבקשת לדרג 'בסולם 1-7 עד כמה אתה מרוצה'. באיזה סולם מדידה מדובר?",
+options:["נומינלי","סדר","מרווחי","יחסי"],
+correct:1,
+explanation:"<strong>סולם סדר (Ordinal)</strong> — ניתן לדרג (1 פחות מ-7), אבל ההבדל בין 1 ל-2 לא בהכרח שווה להבדל בין 6 ל-7. סולם ליקרט הוא סולם סדר, למרות שלפעמים מתייחסים אליו כמרווחי.",
+internalNotes:"ליקרט 1-7 = סולם סדר. מרווחי = מרחקים שווים (למשל טמפרטורה). יחסי = יש אפס אמיתי."},
+{id:10034,topic:4,difficulty:"AI",isAI:true,
+text:"חוקר ביצע 20 ניסויים שונים ובכל אחד בדק האם יש הבדל מובהק (α=0.05). באחד מהם מצא תוצאה מובהקת ופרסם רק אותה. מהי הבעיה?",
+options:["טעות מסוג II","ניפוח אלפא — טעות מסוג I","תוקף חיצוני נמוך","עוצמה סטטיסטית נמוכה"],
+correct:1,
+explanation:"<strong>ניפוח אלפא (Multiple Comparisons)</strong> — כשמבצעים 20 ניסויים עם α=0.05, הסיכוי למצוא לפחות תוצאה אחת מובהקת במקרה הוא 1-(0.95²⁰)≈64%. פרסום רק של המובהקת = טעות מסוג I.",
+internalNotes:"ריבוי השוואות מנפח את הסיכוי לטעות מסוג I. פרסום סלקטיבי = בעיה מתודולוגית חמורה."},
+{id:10035,topic:5,difficulty:"AI",isAI:true,
+text:"בניסוי על תוכנית חונכות, הקבוצות הוקצו רנדומלית. אולם, מנהלת בית הספר ראתה שקבוצת הביקורת לא מקבלת שום תמיכה, אז היא ארגנה להם שיעורי עזר נוספים. מהו האיום?",
+options:["דיפוזיה","דה-מורליזציה","השוואה מפצה","תחרות מפצה"],
+correct:2,
+explanation:"<strong>השוואה מפצה</strong> — מנהלים או גורמי סמכות מספקים פיצוי/תנאים משופרים לקבוצת הביקורת כי 'חבל עליהם'. זה מקטין את ההבדל בין הקבוצות ומאיים על התוקף הפנימי.",
+internalNotes:"מנהלת (לא הנבדקים) נותנת פיצוי = השוואה מפצה. אם הנבדקים עצמם היו משקיעים יותר = תחרות מפצה."},
+{id:10036,topic:5,difficulty:"AI",isAI:true,
+text:"בניסוי עם רנדומיזציה, נבדקי קבוצת הביקורת שמעו שקבוצת הניסוי מקבלת 'טיפול מיוחד'. הם החליטו להוכיח שהם יכולים להצליח גם בלי טיפול, והשקיעו מאמץ רב יותר מהרגיל. מהו האיום?",
+options:["דה-מורליזציה","דיפוזיה","תחרות מפצה","השוואה מפצה"],
+correct:2,
+explanation:"<strong>תחרות מפצה</strong> — נבדקי הביקורת עצמם משקיעים מאמץ יתר כדי 'להוכיח' שהם טובים גם בלי הטיפול. זה מקטין את ההבדל בין הקבוצות.",
+internalNotes:"הנבדקים עצמם מתאמצים יותר = תחרות מפצה. מנהל/חוקר נותן פיצוי = השוואה מפצה. ההבדל הוא מי יוזם."},
+{id:10037,topic:2,difficulty:"AI",isAI:true,
+text:"שאלון מודד שלושה ממדים שונים: חרדה, דיכאון, וסטרס. חוקר חישב אלפא קרונבאך לכל השאלון וקיבל α=0.55. האם השאלון לא מהימן?",
+options:["כן, α נמוכה מעידה על חוסר מהימנות","לא בהכרח — עקיבות פנימית פחות מתאימה כשמודדים מספר ממדים","כן, יש לבנות שאלון חדש","לא, 0.55 נחשב מהימנות מצוינת"],
+correct:1,
+explanation:"כשכלי מודד <strong>מספר ממדים שונים</strong>, לא צפוי שכל הפריטים יתאמו זה עם זה, כי הם מודדים דברים שונים. במקרה כזה, יש לחשב אלפא קרונבאך <strong>בנפרד לכל תת-סולם</strong>.",
+internalNotes:"שאלון רב-ממדי עם α כוללת נמוכה ≠ לא מהימן. צריך לבדוק α לכל ממד בנפרד."},
+{id:10038,topic:3,difficulty:"AI",isAI:true,
+text:"חוקר בדק תוקף של מבחן מיון לצבא. הוא מצא מתאם גבוה בינו לבין ביצועי חיילים בקורס קצינים — 3 שנים לאחר המיון. איזה תוקף הודגם?",
+options:["תוקף מתכנס","תוקף תוכן","תוקף ניבוי","תוקף מבחין"],
+correct:2,
+explanation:"<strong>תוקף ניבוי</strong> — הכלי ניתן בזמן המיון וביצועי הקריטריון נמדדו 3 שנים מאוחר יותר. המפתח הוא פער הזמן בין המדידה לבין הקריטריון.",
+internalNotes:"מדידה בזמן A, קריטריון בזמן B (3 שנים אחרי) = תוקף ניבוי. אם שניהם באותו זמן = תוקף מתכנס."},
+{id:10039,topic:4,difficulty:"AI",isAI:true,
+text:"חוקרת ביצעה מחקר על סטודנטים מאוניברסיטה אחת. מצאה שנדנוד ברגל קשור לחרדת מבחנים. היא כתבה: 'נדנוד ברגל מעיד על חרדת מבחנים בכל מבוגר צעיר.' על איזה תוקף הטענה מאיימת?",
+options:["תוקף פנימי","תוקף סטטיסטי","תוקף חיצוני","תוקף מבנה"],
+correct:2,
+explanation:"<strong>תוקף חיצוני</strong> — הכללה מסטודנטים של אוניברסיטה אחת לכל 'מבוגר צעיר' היא הכללה רחבה מדי. המדגם אינו מייצג את כלל האוכלוסייה.",
+internalNotes:"מדגם צר (אוניברסיטה אחת) → הכללה רחבה (כל מבוגר צעיר) = בעיית תוקף חיצוני."},
+{id:10040,topic:2,difficulty:"AI",isAI:true,
+text:"חוקר מודד 'יצירתיות' של ילדים על ידי כך שני מעריכים צופים בילדים ומדרגים את רמת היצירתיות ב-1-10. המתאם בין הדירוגים: r=0.41. מה המשמעות?",
+options:["השאלון אינו תקף","מהימנות בין שופטים נמוכה — הקריטריונים לא ברורים","עקיבות פנימית נמוכה","תוקף ניבוי נמוך"],
+correct:1,
+explanation:"<strong>מהימנות בין שופטים נמוכה</strong> (r=0.41) — שני המעריכים לא מסכימים על דירוג היצירתיות. זה עשוי להעיד שהקריטריונים להערכה לא מוגדרים היטב או שהמושג סובייקטיבי מדי.",
+internalNotes:"שני מעריכים, מתאם נמוך = בין שופטים נמוכה. הפתרון: הגדרת קריטריונים ברורים יותר, הדרכת השופטים."}
+];
 
-function loadWebLLMLibrary() {
-  return new Promise(function(resolve, reject) {
-    if (window.webllm) { resolve(window.webllm); return; }
-    var script = document.createElement("script");
-    script.type = "module";
-    script.textContent = 'import * as webllm from "https://esm.run/@mlc-ai/web-llm";window.webllm=webllm;window.dispatchEvent(new Event("webllm-loaded"));';
-    window.addEventListener("webllm-loaded", function() { resolve(window.webllm); }, { once: true });
-    script.onerror = function() { reject(new Error("Failed to load WebLLM library")); };
-    document.head.appendChild(script);
-  });
-}
-
-function initAIModel(onProgress) {
-  return loadWebLLMLibrary().then(function(webllm) {
-    var engine = new webllm.MLCEngine();
-    return engine.reload(AI_MODEL_ID, {
-      initProgressCallback: function(report) {
-        if (onProgress) onProgress(report);
-      }
-    }).then(function() {
-      aiEngineInstance = engine;
-      return engine;
-    });
-  });
-}
-
-function generateAIQuestion(card) {
-  if (!aiEngineInstance) return Promise.reject(new Error("AI model not loaded"));
-
-  var prompt = "אתה מומחה בשיטות מחקר בפסיכולוגיה. צור שאלת תרגול מבוססת תרחיש מחקרי מציאותי.\n\n" +
-    "מושג: " + card.front + "\n" +
-    "הסבר: " + card.back + "\n" +
-    "קטגוריה: " + card.category + "\n\n" +
-    "הנחיות:\n" +
-    "1. צור תרחיש מחקרי מציאותי ומפורט\n" +
-    "2. צור 4 אפשרויות תשובה, רק אחת נכונה\n" +
-    "3. הסבר מפורט לתשובה הנכונה\n" +
-    "4. כתוב הכל בעברית\n" +
-    "5. בשדה internalNotes כתוב את תהליך החשיבה שלך\n\n" +
-    'החזר JSON בלבד בפורמט:\n{"text":"שאלה עם תרחיש","options":["א","ב","ג","ד"],"correct":0,"explanation":"הסבר","internalNotes":"תהליך חשיבה"}';
-
-  return aiEngineInstance.chat.completions.create({
-    messages: [
-      { role: "system", content: "You are a psychology research methods expert. Always respond with valid JSON only, no markdown, no extra text." },
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.7,
-    max_tokens: 1024
-  }).then(function(reply) {
-    var raw = reply.choices[0].message.content.trim();
-    // Try to extract JSON if wrapped in markdown code block
-    var jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in AI response");
-    var parsed = JSON.parse(jsonMatch[0]);
-    if (!parsed.text || !Array.isArray(parsed.options) || parsed.options.length !== 4 || typeof parsed.correct !== "number") {
-      throw new Error("Invalid question format from AI");
-    }
-    return {
-      id: 10000 + Date.now() % 90000,
-      topic: FC_CATEGORY_TO_TOPIC[card.category] || 1,
-      difficulty: "AI",
-      text: parsed.text,
-      options: parsed.options,
-      correct: parsed.correct,
-      explanation: parsed.explanation || "",
-      internalNotes: parsed.internalNotes || "",
-      isAI: true,
-      sourceCard: card.id
-    };
-  });
-}
 
 // ===================================================================
 // SECTION 3.6: FLASH CARDS COMPONENT
 // ===================================================================
-function FlashCardsTab(props) {
-  var onGenerateAI = props.onGenerateAI;
-  var aiThinking = props.aiThinking;
-  var aiModelReady = props.aiModelReady;
-  var onLoadModel = props.onLoadModel;
-  var aiLoading = props.aiLoading;
-  var aiLoadProgress = props.aiLoadProgress;
+function FlashCardsTab() {
   const [selectedCategories, setSelectedCategories] = useState(new Set(ALL_FC_CATEGORIES));
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -2013,31 +2172,6 @@ function FlashCardsTab(props) {
             React.createElement("button", {onClick:markKnown,style:{flex:1,maxWidth:200,padding:"14px 0",borderRadius:14,border:"2px solid "+THEME.correct,background:THEME.correctBg,color:"#86efac",cursor:"pointer",fontSize:16,fontWeight:700,fontFamily:"inherit"}},
               "✓ ידעתי"
             )
-          ),
-          // AI Challenge button
-          React.createElement("div", {style:{display:"flex",justifyContent:"center",marginBottom:16}},
-            !aiModelReady && !aiLoading ?
-              React.createElement("button", {
-                onClick: onLoadModel,
-                style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}
-              }, "\uD83E\uDD16 טען מודל AI לייצור שאלות")
-            : aiLoading ?
-              React.createElement("div", {style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",fontSize:14,fontWeight:600,fontFamily:"inherit",textAlign:"center"}},
-                React.createElement("div", {style:{marginBottom:6}}, aiLoadProgress),
-                React.createElement("div", {style:{width:"100%",height:6,borderRadius:3,background:"#1e1b4b",overflow:"hidden"}},
-                  React.createElement("div", {style:{height:"100%",borderRadius:3,background:"linear-gradient(90deg,#8B5CF6,#a78bfa)",transition:"width 0.3s",width:"100%",animation:"pulse 1.5s ease-in-out infinite"}})
-                )
-              )
-            : aiThinking ?
-              React.createElement("button", {
-                disabled: true,
-                style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",fontSize:14,fontWeight:700,fontFamily:"inherit",cursor:"wait",opacity:0.8}
-              }, "\uD83E\uDD16 AI חושב...")
-            :
-              React.createElement("button", {
-                onClick: function() { if (currentCard) onGenerateAI(currentCard); },
-                style:{padding:"12px 24px",borderRadius:14,border:"2px solid #8B5CF6",background:"linear-gradient(135deg,#1e1b4b,#312e81)",color:"#c4b5fd",cursor:"pointer",fontSize:14,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}
-              }, "\uD83E\uDD16 אתגר אותי על המושג הזה ב-AI")
           ),
           // Navigation
           React.createElement("div", {style:{display:"flex",gap:12,justifyContent:"center",alignItems:"center",marginBottom:20}},
@@ -2538,49 +2672,6 @@ function ResearchMethodsTool() {
   const [showSearch, setShowSearch] = useState(false);
   const contentRef = useRef(null);
 
-  // AI state
-  const [aiQuestions, setAiQuestions] = useState(function() {
-    try { return JSON.parse(localStorage.getItem("ai_questions") || "[]"); }
-    catch(e) { return []; }
-  });
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiModelReady, setAiModelReady] = useState(false);
-  const [aiLoadProgress, setAiLoadProgress] = useState("");
-  const [aiThinking, setAiThinking] = useState(false);
-
-  useEffect(function() {
-    localStorage.setItem("ai_questions", JSON.stringify(aiQuestions));
-  }, [aiQuestions]);
-
-  var handleLoadAIModel = useCallback(function() {
-    if (aiModelReady || aiLoading) return;
-    setAiLoading(true);
-    setAiLoadProgress("טוען ספריית AI...");
-    initAIModel(function(report) {
-      setAiLoadProgress(report.text || "טוען מודל...");
-    }).then(function() {
-      setAiModelReady(true);
-      setAiLoading(false);
-      setAiLoadProgress("");
-    }).catch(function(err) {
-      setAiLoading(false);
-      setAiLoadProgress("");
-      alert("שגיאה בטעינת מודל AI: " + err.message);
-    });
-  }, [aiModelReady, aiLoading]);
-
-  var handleGenerateAIQuestion = useCallback(function(card) {
-    if (!aiModelReady || aiThinking) return;
-    setAiThinking(true);
-    generateAIQuestion(card).then(function(question) {
-      setAiQuestions(function(prev) { return [question].concat(prev); });
-      setAiThinking(false);
-    }).catch(function(err) {
-      setAiThinking(false);
-      alert("שגיאה ביצירת שאלה: " + err.message);
-    });
-  }, [aiModelReady, aiThinking]);
-
   // ---- Mobile detection ----
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
   useEffect(() => {
@@ -2592,7 +2683,7 @@ function ResearchMethodsTool() {
   // ---- Derived data ----
   const filteredQuestions = useMemo(() => {
     if (quizMode === "ai") {
-      let qs = aiQuestions;
+      let qs = AI_QUESTIONS;
       if (quizFilter !== "all") {
         qs = qs.filter(q => q.topic === parseInt(quizFilter));
       }
@@ -2609,7 +2700,7 @@ function ResearchMethodsTool() {
       qs = qs.filter(q => answers[q.id] && !answers[q.id].correct);
     }
     return qs;
-  }, [quizFilter, quizMode, bookmarks, answers, aiQuestions]);
+  }, [quizFilter, quizMode, bookmarks, answers]);
   const stats = useMemo(() => {
     const answered = Object.keys(answers).length;
     const correct = Object.values(answers).filter(a => a.correct).length;
@@ -3236,7 +3327,7 @@ function ResearchMethodsTool() {
   }, {
     key: "ai",
     label: "\uD83E\uDD16 שאלות AI",
-    desc: `(${aiQuestions.length})`
+    desc: `(${AI_QUESTIONS.length})`
   }].map(m => /*#__PURE__*/React.createElement("button", {
     key: m.key,
     onClick: () => setQuizMode(m.key),
@@ -3331,7 +3422,7 @@ function ResearchMethodsTool() {
       fontWeight: 600,
       marginBottom: 6
     }
-  }, quizMode === "ai" ? "אין שאלות AI עדיין — צור שאלות מהכרטיסיות" : quizMode === "bookmarks" ? "אין שאלות מסומנות" : quizMode === "wrong" ? "אין טעויות — כל הכבוד!" : "אין שאלות בקטגוריה"), /*#__PURE__*/React.createElement("div", {
+  }, quizMode === "ai" ? "אין שאלות AI בקטגוריה זו" : quizMode === "bookmarks" ? "אין שאלות מסומנות" : quizMode === "wrong" ? "אין טעויות — כל הכבוד!" : "אין שאלות בקטגוריה"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13
     }
@@ -3353,7 +3444,7 @@ function ResearchMethodsTool() {
     answered: answers[q.id],
     bookmarked: bookmarks.has(q.id),
     onBookmark: handleBookmark
-  })))), mainTab === "flashcards" && React.createElement(FlashCardsTab, { onGenerateAI: handleGenerateAIQuestion, aiThinking: aiThinking, aiModelReady: aiModelReady, onLoadModel: handleLoadAIModel, aiLoading: aiLoading, aiLoadProgress: aiLoadProgress }), mainTab === "progress" && /*#__PURE__*/React.createElement("div", {
+  })))), mainTab === "flashcards" && React.createElement(FlashCardsTab, null), mainTab === "progress" && /*#__PURE__*/React.createElement("div", {
     style: {
       animation: "fadeSlideIn 0.4s ease",
       paddingBottom: 40
