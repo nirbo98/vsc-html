@@ -1943,6 +1943,175 @@ explanation:"<strong>מהימנות בין שופטים נמוכה</strong> (r=0
 internalNotes:"שני מעריכים, מתאם נמוך = בין שופטים נמוכה. הפתרון: הגדרת קריטריונים ברורים יותר, הדרכת השופטים."}
 ];
 
+// ===================================================================
+// SECTION 3.8: TEMPLATE-BASED QUESTION GENERATOR
+// ===================================================================
+var FC_CATEGORY_TO_TOPIC = {
+  "השיטה המדעית": 1, "מהימנות המדידה": 2, "תוקף המדידה": 3,
+  "תוקף תוצאות המחקר": 4, "איומים על תוקף פנימי": 5,
+  "מערכי מחקר": 6, "הטיות במחקר": 5, "אתיקה במחקר": 6
+};
+
+function shuffleArray(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function pickRandom(arr, n) {
+  return shuffleArray(arr).slice(0, n);
+}
+
+function stripFront(front) {
+  return front.replace(/^מהו |^מהי |^מהם |^מה |^מתי |^כיצד |^איך |^האם /,"").replace(/\?$/,"");
+}
+
+var Q_TEMPLATES = [
+  // Type 1: "What is X?" — correct answer is card.back, distractors are backs of other cards
+  {
+    makeText: function(card) {
+      return "מי מהאפשרויות הבאות מתאר בצורה הנכונה ביותר את המושג: <strong>" + stripFront(card.front) + "</strong>?";
+    },
+    makeOptions: function(card, distractors) {
+      var correctText = card.back.split("\n")[0];
+      if (correctText.length > 120) correctText = correctText.substring(0, 117) + "...";
+      var opts = distractors.map(function(d) {
+        var t = d.back.split("\n")[0];
+        return t.length > 120 ? t.substring(0, 117) + "..." : t;
+      });
+      opts = opts.slice(0, 3);
+      var correctIdx = Math.floor(Math.random() * 4);
+      opts.splice(correctIdx, 0, correctText);
+      return { options: opts, correct: correctIdx };
+    },
+    makeExplanation: function(card) {
+      return "<strong>" + stripFront(card.front) + "</strong> — " + card.back.replace(/\n/g, " ");
+    }
+  },
+  // Type 2: "Which concept matches this description?"
+  {
+    makeText: function(card) {
+      var desc = card.back.split("\n")[0];
+      if (desc.length > 200) desc = desc.substring(0, 197) + "...";
+      return "איזה מושג מתואר בהגדרה הבאה: \"" + desc + "\"?";
+    },
+    makeOptions: function(card, distractors) {
+      var correctText = stripFront(card.front);
+      var opts = distractors.map(function(d) { return stripFront(d.front); }).slice(0, 3);
+      var correctIdx = Math.floor(Math.random() * 4);
+      opts.splice(correctIdx, 0, correctText);
+      return { options: opts, correct: correctIdx };
+    },
+    makeExplanation: function(card) {
+      return "ההגדרה מתארת את <strong>" + stripFront(card.front) + "</strong>: " + card.back.replace(/\n/g, " ");
+    }
+  },
+  // Type 3: "Which of the following is NOT correct about X?"
+  {
+    makeText: function(card) {
+      return "מי מהטענות הבאות <strong>אינה נכונה</strong> לגבי " + stripFront(card.front) + "?";
+    },
+    makeOptions: function(card, distractors) {
+      var wrongAnswer = distractors[0].back.split("\n")[0];
+      if (wrongAnswer.length > 120) wrongAnswer = wrongAnswer.substring(0, 117) + "...";
+      var parts = card.back.split("\n").filter(function(p) { return p.trim().length > 0; });
+      var correctParts = [];
+      if (parts.length >= 3) {
+        correctParts = pickRandom(parts, 3).map(function(p) {
+          p = p.replace(/^\d+\.\s*/, "");
+          return p.length > 120 ? p.substring(0, 117) + "..." : p;
+        });
+      } else {
+        correctParts.push(parts[0] ? (parts[0].length > 120 ? parts[0].substring(0,117)+"..." : parts[0]) : card.back.substring(0,120));
+        for (var ci = 1; ci < distractors.length && correctParts.length < 3; ci++) {
+          if (distractors[ci].category === card.category) {
+            var dp = distractors[ci].back.split("\n")[0];
+            correctParts.push(dp.length > 120 ? dp.substring(0,117)+"..." : dp);
+          }
+        }
+        while (correctParts.length < 3) correctParts.push(parts[0] || card.back.substring(0,120));
+      }
+      var correctIdx = Math.floor(Math.random() * 4);
+      correctParts.splice(correctIdx, 0, wrongAnswer);
+      return { options: correctParts.slice(0, 4), correct: correctIdx };
+    },
+    makeExplanation: function(card, distractors) {
+      return "התשובה השגויה מתייחסת ל<strong>" + stripFront(distractors[0].front) + "</strong>, ולא ל" + stripFront(card.front) + ". " + card.back.split("\n")[0];
+    }
+  },
+  // Type 4: "What is the difference between X and Y?"
+  {
+    makeText: function(card, distractors) {
+      var other = distractors[0];
+      return "מה ההבדל העיקרי בין <strong>" + stripFront(card.front) + "</strong> לבין <strong>" + stripFront(other.front) + "</strong>?";
+    },
+    makeOptions: function(card, distractors) {
+      var other = distractors[0];
+      var correctText = stripFront(card.front) + " — " + card.back.split("\n")[0].substring(0, 60) + "..., ואילו " + stripFront(other.front) + " — " + other.back.split("\n")[0].substring(0, 60) + "...";
+      if (correctText.length > 160) correctText = correctText.substring(0, 157) + "...";
+      var wrongOpts = [
+        "אין הבדל ביניהם — הם מושגים זהים",
+        stripFront(card.front) + " הוא תנאי הכרחי ל" + stripFront(other.front),
+        "שניהם מתייחסים לאותה תופעה בדיוק, רק בהקשרים שונים"
+      ];
+      var correctIdx = Math.floor(Math.random() * 4);
+      var opts = pickRandom(wrongOpts, 3);
+      opts.splice(correctIdx, 0, correctText);
+      return { options: opts, correct: correctIdx };
+    },
+    makeExplanation: function(card, distractors) {
+      var other = distractors[0];
+      return "<strong>" + stripFront(card.front) + "</strong>: " + card.back.split("\n")[0] + "<br><strong>" + stripFront(other.front) + "</strong>: " + other.back.split("\n")[0];
+    }
+  }
+];
+
+function generateQuestionFromTemplate(usedCardIds) {
+  var availableCards = CARDS_DATA.filter(function(c) { return !usedCardIds.has(c.id); });
+  if (availableCards.length < 4) availableCards = CARDS_DATA.slice();
+
+  var card = availableCards[Math.floor(Math.random() * availableCards.length)];
+
+  // Get distractors: prefer same category, fallback to any
+  var sameCategory = CARDS_DATA.filter(function(c) { return c.id !== card.id && c.category === card.category; });
+  var otherCards = CARDS_DATA.filter(function(c) { return c.id !== card.id && c.category !== card.category; });
+  var distractors = shuffleArray(sameCategory).concat(shuffleArray(otherCards)).slice(0, 5);
+
+  if (distractors.length < 3) return null;
+
+  var template = Q_TEMPLATES[Math.floor(Math.random() * Q_TEMPLATES.length)];
+  var text = template.makeText(card, distractors);
+  var result = template.makeOptions(card, distractors);
+  var explanation = template.makeExplanation(card, distractors);
+
+  return {
+    id: 20000 + Date.now() % 80000 + Math.floor(Math.random() * 1000),
+    topic: FC_CATEGORY_TO_TOPIC[card.category] || 1,
+    difficulty: "מחולל",
+    text: text,
+    options: result.options,
+    correct: result.correct,
+    explanation: explanation,
+    isAI: true,
+    sourceCard: card.id
+  };
+}
+
+function generateBatch(count) {
+  var questions = [];
+  var usedCardIds = new Set();
+  for (var i = 0; i < count; i++) {
+    var q = generateQuestionFromTemplate(usedCardIds);
+    if (q) {
+      questions.push(q);
+      usedCardIds.add(q.sourceCard);
+    }
+  }
+  return questions;
+}
 
 // ===================================================================
 // SECTION 3.6: FLASH CARDS COMPONENT
@@ -2267,6 +2436,14 @@ function DiffBadge({
     "קשה": {
       bg: "rgba(239,68,68,0.1)",
       color: "#ef4444"
+    },
+    "AI": {
+      bg: "rgba(139,92,246,0.1)",
+      color: "#a78bfa"
+    },
+    "מחולל": {
+      bg: "rgba(139,92,246,0.1)",
+      color: "#a78bfa"
     }
   };
   const c = colors[difficulty] || colors["בינונית"];
@@ -2672,6 +2849,25 @@ function ResearchMethodsTool() {
   const [showSearch, setShowSearch] = useState(false);
   const contentRef = useRef(null);
 
+  // Generated questions state
+  const [generatedQuestions, setGeneratedQuestions] = useState(function() {
+    try { return JSON.parse(localStorage.getItem("generated_questions") || "[]"); }
+    catch(e) { return []; }
+  });
+  useEffect(function() {
+    localStorage.setItem("generated_questions", JSON.stringify(generatedQuestions));
+  }, [generatedQuestions]);
+
+  var handleGenerate = useCallback(function(count) {
+    var newQs = generateBatch(count);
+    setGeneratedQuestions(function(prev) { return newQs.concat(prev); });
+  }, []);
+
+  var handleClearGenerated = useCallback(function() {
+    setGeneratedQuestions([]);
+    localStorage.removeItem("generated_questions");
+  }, []);
+
   // ---- Mobile detection ----
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 480);
   useEffect(() => {
@@ -2683,7 +2879,7 @@ function ResearchMethodsTool() {
   // ---- Derived data ----
   const filteredQuestions = useMemo(() => {
     if (quizMode === "ai") {
-      let qs = AI_QUESTIONS;
+      let qs = AI_QUESTIONS.concat(generatedQuestions);
       if (quizFilter !== "all") {
         qs = qs.filter(q => q.topic === parseInt(quizFilter));
       }
@@ -2700,7 +2896,7 @@ function ResearchMethodsTool() {
       qs = qs.filter(q => answers[q.id] && !answers[q.id].correct);
     }
     return qs;
-  }, [quizFilter, quizMode, bookmarks, answers]);
+  }, [quizFilter, quizMode, bookmarks, answers, generatedQuestions]);
   const stats = useMemo(() => {
     const answered = Object.keys(answers).length;
     const correct = Object.values(answers).filter(a => a.correct).length;
@@ -3327,7 +3523,7 @@ function ResearchMethodsTool() {
   }, {
     key: "ai",
     label: "\uD83E\uDD16 שאלות AI",
-    desc: `(${AI_QUESTIONS.length})`
+    desc: `(${AI_QUESTIONS.length + generatedQuestions.length})`
   }].map(m => /*#__PURE__*/React.createElement("button", {
     key: m.key,
     onClick: () => setQuizMode(m.key),
@@ -3436,7 +3632,29 @@ function ResearchMethodsTool() {
       color: THEME.textMuted,
       marginBottom: 12
     }
-  }, "\u05DE\u05E6\u05D9\u05D2 ", filteredQuestions.length, " \u05E9\u05D0\u05DC\u05D5\u05EA"), filteredQuestions.map((q, i) => /*#__PURE__*/React.createElement(QuizQuestion, {
+  }, "\u05DE\u05E6\u05D9\u05D2 ", filteredQuestions.length, " \u05E9\u05D0\u05DC\u05D5\u05EA"),
+  quizMode === "ai" && React.createElement("div", {
+    style: {display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:16,padding:"14px 16px",borderRadius:12,background:"linear-gradient(135deg,rgba(139,92,246,0.08),rgba(139,92,246,0.03))",border:"1px solid rgba(139,92,246,0.2)"}
+  },
+    React.createElement("span", {style:{fontSize:13,color:"#c4b5fd",fontWeight:600}}, "\uD83C\uDFB2 מחולל שאלות:"),
+    React.createElement("button", {
+      onClick: function() { handleGenerate(10); },
+      style:{padding:"6px 14px",borderRadius:8,border:"1px solid rgba(139,92,246,0.4)",background:"rgba(139,92,246,0.15)",color:"#c4b5fd",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}
+    }, "ייצר 10 שאלות"),
+    React.createElement("button", {
+      onClick: function() { handleGenerate(25); },
+      style:{padding:"6px 14px",borderRadius:8,border:"1px solid rgba(139,92,246,0.4)",background:"rgba(139,92,246,0.15)",color:"#c4b5fd",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}
+    }, "ייצר 25 שאלות"),
+    React.createElement("button", {
+      onClick: function() { handleGenerate(50); },
+      style:{padding:"6px 14px",borderRadius:8,border:"1px solid rgba(139,92,246,0.4)",background:"rgba(139,92,246,0.15)",color:"#c4b5fd",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}
+    }, "ייצר 50 שאלות"),
+    generatedQuestions.length > 0 && React.createElement("button", {
+      onClick: handleClearGenerated,
+      style:{padding:"6px 14px",borderRadius:8,border:"1px solid rgba(239,68,68,0.3)",background:"rgba(239,68,68,0.1)",color:"#fca5a5",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginRight:"auto"}
+    }, "\u00D7 נקה מחוללות (" + generatedQuestions.length + ")")
+  ),
+  filteredQuestions.map((q, i) => /*#__PURE__*/React.createElement(QuizQuestion, {
     key: q.id,
     q: q,
     index: i,
