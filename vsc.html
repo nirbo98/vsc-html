@@ -2947,6 +2947,10 @@ function FlashCardsTab() {
   const [shuffled, setShuffled] = useState(false);
   const [filterMode, setFilterMode] = useState("all");
   const [shuffledOrder, setShuffledOrder] = useState([]);
+  const [slideDir, setSlideDir] = useState(null);
+  const [showProgress, setShowProgress] = useState(false);
+  const touchRef = useRef(null);
+  const cardRef = useRef(null);
 
   var filteredCards = CARDS_DATA.filter(function(card) {
     if (!selectedCategories.has(card.category)) return false;
@@ -2980,15 +2984,23 @@ function FlashCardsTab() {
 
   var handleNext = useCallback(function() {
     if (currentIndex < displayCards.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setIsFlipped(false);
+      setSlideDir("left");
+      setTimeout(function() {
+        setCurrentIndex(currentIndex + 1);
+        setIsFlipped(false);
+        setSlideDir(null);
+      }, 150);
     }
   }, [currentIndex, displayCards.length]);
 
   var handlePrev = useCallback(function() {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setIsFlipped(false);
+      setSlideDir("right");
+      setTimeout(function() {
+        setCurrentIndex(currentIndex - 1);
+        setIsFlipped(false);
+        setSlideDir(null);
+      }, 150);
     }
   }, [currentIndex]);
 
@@ -2996,17 +3008,22 @@ function FlashCardsTab() {
     if (!currentCard) return;
     setKnownCards(function(prev) { return new Set([...prev, currentCard.id]); });
     setUnknownCards(function(prev) { var next = new Set(prev); next.delete(currentCard.id); return next; });
-    handleNext();
+    if (currentIndex < displayCards.length - 1) {
+      handleNext();
+    }
   };
 
   var markUnknown = function() {
     if (!currentCard) return;
     setUnknownCards(function(prev) { return new Set([...prev, currentCard.id]); });
     setKnownCards(function(prev) { var next = new Set(prev); next.delete(currentCard.id); return next; });
-    handleNext();
+    if (currentIndex < displayCards.length - 1) {
+      handleNext();
+    }
   };
 
   var resetProgress = function() {
+    if (!confirm("לאפס את כל ההתקדמות?")) return;
     setKnownCards(new Set());
     setUnknownCards(new Set());
     setCurrentIndex(0);
@@ -3023,6 +3040,7 @@ function FlashCardsTab() {
     });
   };
 
+  // Keyboard shortcuts
   useEffect(function() {
     var handleKey = function(e) {
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -3036,156 +3054,206 @@ function FlashCardsTab() {
     return function() { window.removeEventListener("keydown", handleKey); };
   }, [handleNext, handlePrev]);
 
+  // Touch/swipe support
+  var handleTouchStart = function(e) {
+    touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
+  };
+  var handleTouchEnd = function(e) {
+    if (!touchRef.current) return;
+    var dx = e.changedTouches[0].clientX - touchRef.current.x;
+    var dy = e.changedTouches[0].clientY - touchRef.current.y;
+    var dt = Date.now() - touchRef.current.time;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 500) {
+      if (dx > 0) handleNext(); else handlePrev();
+    }
+    touchRef.current = null;
+  };
+
   var totalCards = CARDS_DATA.length;
   var answeredCount = knownCards.size + unknownCards.size;
   var progressPercent = totalCards > 0 ? Math.round((knownCards.size / totalCards) * 100) : 0;
   var catColors = currentCard ? (FC_CATEGORY_COLORS[currentCard.category] || {bg:"#F9FAFB",accent:"#6B7280",text:"#374151"}) : {bg:"#F9FAFB",accent:"#6B7280",text:"#374151"};
 
+  // Card status for current card
+  var cardStatus = currentCard ? (knownCards.has(currentCard.id) ? "known" : unknownCards.has(currentCard.id) ? "unknown" : "new") : "new";
+
+  // Slide animation style
+  var slideStyle = slideDir === "left" ? {opacity:0,transform:"translateX(-30px)",transition:"all 0.15s ease"} :
+                   slideDir === "right" ? {opacity:0,transform:"translateX(30px)",transition:"all 0.15s ease"} :
+                   {opacity:1,transform:"translateX(0)",transition:"all 0.15s ease"};
+
   return React.createElement("div", {style:{animation:"fadeSlideIn 0.4s ease",paddingBottom:40}},
-    // Stats bar
-    React.createElement("div", {style:{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:16,flexWrap:"wrap"}},
-      React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderRadius:12,padding:"8px 16px",textAlign:"center"}},
-        React.createElement("div", {style:{fontSize:22,fontWeight:800,color:"#22c55e"}}, knownCards.size),
-        React.createElement("div", {style:{fontSize:10,color:THEME.textMuted}}, "ידעתי")
-      ),
-      React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderRadius:12,padding:"8px 16px",textAlign:"center"}},
-        React.createElement("div", {style:{fontSize:22,fontWeight:800,color:"#ef4444"}}, unknownCards.size),
-        React.createElement("div", {style:{fontSize:10,color:THEME.textMuted}}, "לחזור")
-      ),
-      React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderRadius:12,padding:"8px 16px",textAlign:"center"}},
-        React.createElement("div", {style:{fontSize:22,fontWeight:800,color:THEME.accentLight}}, totalCards - answeredCount),
-        React.createElement("div", {style:{fontSize:10,color:THEME.textMuted}}, "נותרו")
-      )
-    ),
-    // Progress bar
-    React.createElement("div", {style:{marginBottom:16}},
-      React.createElement("div", {style:{display:"flex",justifyContent:"space-between",fontSize:12,color:THEME.textMuted,marginBottom:6}},
-        React.createElement("span", null, "התקדמות כללית"),
-        React.createElement("span", null, progressPercent+"% ("+knownCards.size+"/"+totalCards+")")
-      ),
-      React.createElement("div", {style:{height:8,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden",border:"1px solid "+THEME.border}},
-        React.createElement("div", {style:{height:"100%",width:progressPercent+"%",background:"linear-gradient(90deg, #22c55e, #4ade80)",borderRadius:99,transition:"width 0.5s ease"}})
-      )
-    ),
-    // Toolbar
-    React.createElement("div", {style:{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:16}},
-      React.createElement("button", {onClick:function(){setShowCategoryFilter(!showCategoryFilter)},style:{padding:"8px 14px",borderRadius:10,border:"1px solid "+THEME.borderLight,background:showCategoryFilter?THEME.bgCardHover:"transparent",color:THEME.text,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}},
-        "📂 נושאים ("+selectedCategories.size+"/"+ALL_FC_CATEGORIES.length+")"
-      ),
-      React.createElement("button", {onClick:function(){setShuffled(!shuffled)},style:{padding:"8px 14px",borderRadius:10,border:"1px solid "+THEME.borderLight,background:shuffled?THEME.bgCardHover:"transparent",color:THEME.text,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}},
-        shuffled ? "🔀 סדר מקורי" : "🔀 ערבב"
-      ),
-      React.createElement("select", {value:filterMode,onChange:function(e){setFilterMode(e.target.value)},style:{padding:"8px 14px",borderRadius:10,border:"1px solid "+THEME.borderLight,background:THEME.bgCard,color:THEME.text,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",direction:"rtl"}},
-        React.createElement("option", {value:"all"}, "כל הכרטיסיות"),
-        React.createElement("option", {value:"unknown"}, "לחזרה בלבד"),
-        React.createElement("option", {value:"unanswered"}, "טרם נענו")
-      ),
-      React.createElement("button", {onClick:resetProgress,style:{padding:"8px 14px",borderRadius:10,border:"1px solid "+THEME.wrongBorder,background:"transparent",color:THEME.wrong,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",marginRight:"auto"}},
-        "🔄 אפס"
-      )
-    ),
-    // Category filter
-    showCategoryFilter && React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderRadius:14,padding:16,marginBottom:16}},
-      React.createElement("div", {style:{display:"flex",justifyContent:"space-between",marginBottom:12}},
-        React.createElement("span", {style:{fontWeight:700,fontSize:14,color:THEME.text}}, "בחר נושאים"),
-        React.createElement("div", {style:{display:"flex",gap:8}},
-          React.createElement("button", {onClick:function(){setSelectedCategories(new Set(ALL_FC_CATEGORIES))},style:{fontSize:12,color:THEME.accentLight,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}, "בחר הכל"),
-          React.createElement("button", {onClick:function(){setSelectedCategories(new Set())},style:{fontSize:12,color:THEME.textMuted,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}, "נקה הכל")
+
+    // Compact top bar: stats + progress in one row
+    React.createElement("div", {style:{display:"flex",alignItems:"center",gap:16,marginBottom:14,padding:"10px 16px",background:THEME.bgCard,borderRadius:14,border:"1px solid "+THEME.border}},
+      // Mini stats
+      React.createElement("div", {style:{display:"flex",gap:16,flex:1}},
+        React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
+          React.createElement("span", {style:{fontSize:18,fontWeight:800,color:"#22c55e"}}, knownCards.size),
+          React.createElement("span", {style:{fontSize:11,color:THEME.textMuted}}, "ידעתי")
+        ),
+        React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
+          React.createElement("span", {style:{fontSize:18,fontWeight:800,color:"#ef4444"}}, unknownCards.size),
+          React.createElement("span", {style:{fontSize:11,color:THEME.textMuted}}, "לחזור")
+        ),
+        React.createElement("div", {style:{display:"flex",alignItems:"center",gap:6}},
+          React.createElement("span", {style:{fontSize:18,fontWeight:800,color:THEME.accentLight}}, totalCards - answeredCount),
+          React.createElement("span", {style:{fontSize:11,color:THEME.textMuted}}, "נותרו")
         )
       ),
-      React.createElement("div", {style:{display:"flex",flexWrap:"wrap",gap:8}},
+      // Progress percentage
+      React.createElement("div", {style:{fontSize:13,fontWeight:700,color:"#22c55e",whiteSpace:"nowrap"}}, progressPercent+"%")
+    ),
+
+    // Slim progress bar
+    React.createElement("div", {style:{height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden",marginBottom:14}},
+      React.createElement("div", {style:{height:"100%",width:progressPercent+"%",background:"linear-gradient(90deg, #22c55e, #4ade80)",borderRadius:99,transition:"width 0.5s ease"}})
+    ),
+
+    // Compact toolbar - single row with icons
+    React.createElement("div", {style:{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:14}},
+      React.createElement("button", {onClick:function(){setShowCategoryFilter(!showCategoryFilter)},style:{padding:"7px 12px",borderRadius:10,border:"1px solid "+(showCategoryFilter?THEME.accentLight+"55":THEME.borderLight),background:showCategoryFilter?THEME.accentLight+"15":"transparent",color:showCategoryFilter?THEME.accentLight:THEME.text,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",transition:"all 0.2s"}},
+        "📂 "+selectedCategories.size+"/"+ALL_FC_CATEGORIES.length
+      ),
+      React.createElement("button", {onClick:function(){setShuffled(!shuffled)},style:{padding:"7px 12px",borderRadius:10,border:"1px solid "+(shuffled?"#a78bfa55":THEME.borderLight),background:shuffled?"#a78bfa15":"transparent",color:shuffled?"#a78bfa":THEME.text,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",transition:"all 0.2s"}},
+        shuffled ? "🔀 מעורבב" : "🔀 ערבב"
+      ),
+      // Filter mode as pill buttons instead of select
+      React.createElement("div", {style:{display:"flex",borderRadius:10,border:"1px solid "+THEME.borderLight,overflow:"hidden"}},
+        [["all","הכל"],["unknown","לחזרה"],["unanswered","חדשות"]].map(function(item) {
+          var isActive = filterMode === item[0];
+          return React.createElement("button", {key:item[0],onClick:function(){setFilterMode(item[0])},style:{padding:"7px 12px",border:"none",background:isActive?THEME.accentLight+"20":"transparent",color:isActive?THEME.accentLight:THEME.textMuted,cursor:"pointer",fontSize:11,fontWeight:isActive?700:500,fontFamily:"inherit",transition:"all 0.2s"}}, item[1]);
+        })
+      ),
+      React.createElement("button", {onClick:resetProgress,style:{padding:"7px 10px",borderRadius:10,border:"1px solid "+THEME.wrongBorder,background:"transparent",color:THEME.wrong,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",marginRight:"auto",opacity:0.7,transition:"opacity 0.2s"},onMouseEnter:function(e){e.target.style.opacity="1"},onMouseLeave:function(e){e.target.style.opacity="0.7"}},
+        "🔄"
+      )
+    ),
+
+    // Category filter panel
+    showCategoryFilter && React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderRadius:14,padding:14,marginBottom:14,animation:"fadeSlideIn 0.25s ease"}},
+      React.createElement("div", {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}},
+        React.createElement("span", {style:{fontWeight:700,fontSize:13,color:THEME.text}}, "נושאים"),
+        React.createElement("div", {style:{display:"flex",gap:8}},
+          React.createElement("button", {onClick:function(){setSelectedCategories(new Set(ALL_FC_CATEGORIES))},style:{fontSize:11,color:THEME.accentLight,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}, "הכל"),
+          React.createElement("button", {onClick:function(){setSelectedCategories(new Set())},style:{fontSize:11,color:THEME.textMuted,background:"none",border:"none",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}, "נקה")
+        )
+      ),
+      React.createElement("div", {style:{display:"flex",flexWrap:"wrap",gap:6}},
         ALL_FC_CATEGORIES.map(function(cat) {
           var colors = FC_CATEGORY_COLORS[cat] || {accent:"#6B7280"};
           var isSelected = selectedCategories.has(cat);
           var count = CARDS_DATA.filter(function(c){return c.category===cat}).length;
-          return React.createElement("button", {key:cat,onClick:function(){toggleCategory(cat)},style:{padding:"6px 14px",borderRadius:99,border:"2px solid "+(isSelected?colors.accent:"#475569"),background:isSelected?colors.accent+"22":"transparent",color:isSelected?colors.accent:THEME.textMuted,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",transition:"all 0.2s"}},
-            cat+" ("+count+")"
+          var catKnown = CARDS_DATA.filter(function(c){return c.category===cat && knownCards.has(c.id)}).length;
+          return React.createElement("button", {key:cat,onClick:function(){toggleCategory(cat)},style:{padding:"5px 12px",borderRadius:99,border:"2px solid "+(isSelected?colors.accent:"#47556944"),background:isSelected?colors.accent+"22":"transparent",color:isSelected?colors.accent:THEME.textMuted,cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",transition:"all 0.2s",position:"relative"}},
+            cat+" "+catKnown+"/"+count
           );
         })
       )
     ),
-    // Card or empty state
+
+    // Card area or empty state
     displayCards.length === 0
       ? React.createElement("div", {style:{textAlign:"center",padding:"60px 20px",color:THEME.textMuted}},
           React.createElement("div", {style:{fontSize:48,marginBottom:12}}, "📭"),
           React.createElement("p", {style:{fontSize:18,fontWeight:600}}, "אין כרטיסיות להצגה"),
           React.createElement("p", {style:{fontSize:14}}, "נסה לשנות את הסינון או הנושאים")
         )
-      : React.createElement("div", null,
-          // Card number
-          React.createElement("div", {style:{textAlign:"center",fontSize:13,color:THEME.textMuted,marginBottom:10}},
-            (currentIndex+1)+" / "+displayCards.length
+      : React.createElement("div", {onTouchStart:handleTouchStart,onTouchEnd:handleTouchEnd},
+
+          // Navigation + card counter in one row
+          React.createElement("div", {style:{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:10}},
+            React.createElement("button", {onClick:handlePrev,disabled:currentIndex===0,style:{width:40,height:40,borderRadius:99,border:"1px solid "+THEME.borderLight,background:currentIndex===0?"transparent":THEME.bgCard,color:currentIndex===0?THEME.textMuted+"44":THEME.text,cursor:currentIndex===0?"default":"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",transition:"all 0.2s"}}, "→"),
+            React.createElement("span", {style:{fontSize:14,color:THEME.textMuted,fontWeight:600,minWidth:90,textAlign:"center"}},
+              (currentIndex+1)+" / "+displayCards.length
+            ),
+            React.createElement("button", {onClick:handleNext,disabled:currentIndex>=displayCards.length-1,style:{width:40,height:40,borderRadius:99,border:"1px solid "+THEME.borderLight,background:currentIndex>=displayCards.length-1?"transparent":THEME.bgCard,color:currentIndex>=displayCards.length-1?THEME.textMuted+"44":THEME.text,cursor:currentIndex>=displayCards.length-1?"default":"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",transition:"all 0.2s"}}, "←")
           ),
-          // The card
-          React.createElement("div", {onClick:handleFlip,style:{minHeight:300,perspective:1200,cursor:"pointer",userSelect:"none",marginBottom:16}},
-            React.createElement("div", {style:{position:"relative",width:"100%",minHeight:300,transition:"transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",transformStyle:"preserve-3d",transform:isFlipped?"rotateY(180deg)":"rotateY(0)"}},
+
+          // Mini progress dots
+          displayCards.length <= 20 && React.createElement("div", {style:{display:"flex",justifyContent:"center",gap:4,marginBottom:12,flexWrap:"wrap"}},
+            displayCards.map(function(card, idx) {
+              var dotStatus = knownCards.has(card.id) ? "#22c55e" : unknownCards.has(card.id) ? "#ef4444" : THEME.borderLight;
+              var isCurrent = idx === currentIndex;
+              return React.createElement("div", {key:idx,onClick:function(){setCurrentIndex(idx);setIsFlipped(false)},style:{width:isCurrent?20:8,height:8,borderRadius:99,background:isCurrent?catColors.accent:dotStatus,cursor:"pointer",transition:"all 0.3s ease",opacity:isCurrent?1:0.6}});
+            })
+          ),
+
+          // The card with slide animation
+          React.createElement("div", {ref:cardRef,onClick:handleFlip,style:Object.assign({},{minHeight:280,perspective:1200,cursor:"pointer",userSelect:"none",marginBottom:12},slideStyle)},
+            React.createElement("div", {style:{position:"relative",width:"100%",minHeight:280,transition:"transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",transformStyle:"preserve-3d",transform:isFlipped?"rotateY(180deg)":"rotateY(0)"}},
               // Front
-              React.createElement("div", {style:{position:"absolute",inset:0,backfaceVisibility:"hidden",borderRadius:20,background:"linear-gradient(145deg, "+catColors.bg+", #ffffff)",border:"2px solid "+catColors.accent+"33",padding:"32px 28px",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",boxShadow:"0 20px 60px "+catColors.accent+"15"}},
-                React.createElement("div", {style:{position:"absolute",top:16,right:20,background:catColors.accent+"18",color:catColors.text,padding:"4px 14px",borderRadius:99,fontSize:12,fontWeight:700}},
-                  currentCard && currentCard.category
+              React.createElement("div", {style:{position:"absolute",inset:0,backfaceVisibility:"hidden",borderRadius:20,background:"linear-gradient(145deg, "+catColors.bg+", #ffffff)",border:"2px solid "+catColors.accent+"33",padding:"28px 24px",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",boxShadow:"0 12px 40px "+catColors.accent+"12"}},
+                // Top row: category + status
+                React.createElement("div", {style:{position:"absolute",top:14,right:16,left:16,display:"flex",justifyContent:"space-between",alignItems:"center"}},
+                  React.createElement("div", {style:{background:catColors.accent+"18",color:catColors.text,padding:"3px 12px",borderRadius:99,fontSize:11,fontWeight:700}},
+                    currentCard && currentCard.category
+                  ),
+                  cardStatus !== "new" && React.createElement("div", {style:{fontSize:14}},
+                    cardStatus === "known" ? "✅" : "🔄"
+                  )
                 ),
-                currentCard && (knownCards.has(currentCard.id) || unknownCards.has(currentCard.id)) && React.createElement("div", {style:{position:"absolute",top:16,left:20,fontSize:18}},
-                  knownCards.has(currentCard.id) ? "✅" : "🔄"
-                ),
-                React.createElement("div", {style:{position:"absolute",bottom:16,fontSize:12,color:catColors.accent+"88"}}, "לחץ להפוך ←"),
-                React.createElement("p", {style:{fontSize:20,fontWeight:700,color:catColors.text,textAlign:"center",lineHeight:1.6,margin:0}},
+                // Question text
+                React.createElement("p", {style:{fontSize:19,fontWeight:700,color:catColors.text,textAlign:"center",lineHeight:1.7,margin:"12px 0 0"}},
                   currentCard && currentCard.front
+                ),
+                // Tap hint at bottom
+                React.createElement("div", {style:{position:"absolute",bottom:14,fontSize:11,color:catColors.accent+"66",display:"flex",alignItems:"center",gap:4}},
+                  "הקש להפוך", " ", "👆"
                 )
               ),
               // Back
-              React.createElement("div", {style:{position:"absolute",inset:0,backfaceVisibility:"hidden",transform:"rotateY(180deg)",borderRadius:20,background:"linear-gradient(145deg, "+THEME.bgElevated+", "+THEME.bg+")",border:"2px solid "+catColors.accent+"55",padding:"32px 28px",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",boxShadow:"0 20px 60px "+catColors.accent+"20"}},
-                React.createElement("div", {style:{position:"absolute",top:16,right:20,background:catColors.accent+"30",color:catColors.accent,padding:"4px 14px",borderRadius:99,fontSize:12,fontWeight:700}},
+              React.createElement("div", {style:{position:"absolute",inset:0,backfaceVisibility:"hidden",transform:"rotateY(180deg)",borderRadius:20,background:"linear-gradient(145deg, "+THEME.bgElevated+", "+THEME.bg+")",border:"2px solid "+catColors.accent+"55",padding:"28px 24px",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",boxShadow:"0 12px 40px "+catColors.accent+"15"}},
+                React.createElement("div", {style:{position:"absolute",top:14,right:16,background:catColors.accent+"30",color:catColors.accent,padding:"3px 12px",borderRadius:99,fontSize:11,fontWeight:700}},
                   "תשובה"
                 ),
-                React.createElement("p", {style:{fontSize:16,color:THEME.text,textAlign:"center",lineHeight:1.8,margin:0,whiteSpace:"pre-line"}},
+                React.createElement("p", {style:{fontSize:15,color:THEME.text,textAlign:"center",lineHeight:1.85,margin:"12px 0 0",whiteSpace:"pre-line"}},
                   currentCard && currentCard.back
                 )
               )
             )
           ),
-          // Known/Unknown buttons
-          React.createElement("div", {style:{display:"flex",gap:12,justifyContent:"center",marginBottom:12}},
-            React.createElement("button", {onClick:markUnknown,style:{flex:1,maxWidth:200,padding:"14px 0",borderRadius:14,border:"2px solid "+THEME.wrong,background:THEME.wrongBg,color:"#fca5a5",cursor:"pointer",fontSize:16,fontWeight:700,fontFamily:"inherit"}},
+
+          // Know / Don't know buttons - more prominent and with swipe hints
+          React.createElement("div", {style:{display:"flex",gap:10,justifyContent:"center",marginBottom:16}},
+            React.createElement("button", {onClick:markUnknown,style:{flex:1,maxWidth:180,padding:"14px 0",borderRadius:14,border:"2px solid "+THEME.wrong,background:THEME.wrongBg,color:"#fca5a5",cursor:"pointer",fontSize:15,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"center",gap:6},onMouseEnter:function(e){e.currentTarget.style.transform="scale(1.03)"},onMouseLeave:function(e){e.currentTarget.style.transform="scale(1)"}},
               "✗ לא ידעתי"
             ),
-            React.createElement("button", {onClick:markKnown,style:{flex:1,maxWidth:200,padding:"14px 0",borderRadius:14,border:"2px solid "+THEME.correct,background:THEME.correctBg,color:"#86efac",cursor:"pointer",fontSize:16,fontWeight:700,fontFamily:"inherit"}},
+            React.createElement("button", {onClick:markKnown,style:{flex:1,maxWidth:180,padding:"14px 0",borderRadius:14,border:"2px solid "+THEME.correct,background:THEME.correctBg,color:"#86efac",cursor:"pointer",fontSize:15,fontWeight:700,fontFamily:"inherit",transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"center",gap:6},onMouseEnter:function(e){e.currentTarget.style.transform="scale(1.03)"},onMouseLeave:function(e){e.currentTarget.style.transform="scale(1)"}},
               "✓ ידעתי"
             )
           ),
-          // Navigation
-          React.createElement("div", {style:{display:"flex",gap:12,justifyContent:"center",alignItems:"center",marginBottom:20}},
-            React.createElement("button", {onClick:handlePrev,disabled:currentIndex===0,style:{width:48,height:48,borderRadius:99,border:"1px solid "+THEME.borderLight,background:currentIndex===0?THEME.bgCard+"44":THEME.bgCard,color:currentIndex===0?THEME.textMuted:THEME.text,cursor:currentIndex===0?"default":"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}, "→"),
-            React.createElement("span", {style:{fontSize:13,color:THEME.textMuted,minWidth:80,textAlign:"center"}},
-              (currentIndex+1)+" מתוך "+displayCards.length
-            ),
-            React.createElement("button", {onClick:handleNext,disabled:currentIndex>=displayCards.length-1,style:{width:48,height:48,borderRadius:99,border:"1px solid "+THEME.borderLight,background:currentIndex>=displayCards.length-1?THEME.bgCard+"44":THEME.bgCard,color:currentIndex>=displayCards.length-1?THEME.textMuted:THEME.text,cursor:currentIndex>=displayCards.length-1?"default":"pointer",fontSize:20,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}, "←")
+
+          // Collapsible per-category progress
+          React.createElement("button", {onClick:function(){setShowProgress(!showProgress)},style:{width:"100%",padding:"12px 16px",borderRadius:14,border:"1px solid "+THEME.border,background:THEME.bgCard,color:THEME.textDim,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:showProgress?0:0,transition:"all 0.2s"}},
+            React.createElement("span", null, "התקדמות לפי נושאים"),
+            React.createElement("span", {style:{fontSize:16,transition:"transform 0.3s",transform:showProgress?"rotate(180deg)":"rotate(0)"}}, "▾")
           ),
-          // Per-category progress
-          React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderRadius:14,padding:20}},
-            React.createElement("h3", {style:{margin:"0 0 16px",fontSize:15,fontWeight:700,color:THEME.textDim}}, "התקדמות לפי נושאים"),
-            React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(220px, 1fr))",gap:10}},
+          showProgress && React.createElement("div", {style:{background:THEME.bgCard,border:"1px solid "+THEME.border,borderTop:"none",borderRadius:"0 0 14px 14px",padding:"12px 16px",animation:"fadeSlideIn 0.25s ease"}},
+            React.createElement("div", {style:{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))",gap:8}},
               ALL_FC_CATEGORIES.map(function(cat) {
                 var colors = FC_CATEGORY_COLORS[cat] || {accent:"#6B7280"};
                 var catCards = CARDS_DATA.filter(function(c){return c.category===cat});
                 var catKnown = catCards.filter(function(c){return knownCards.has(c.id)}).length;
                 var catUnk = catCards.filter(function(c){return unknownCards.has(c.id)}).length;
                 var pct = catCards.length > 0 ? Math.round((catKnown/catCards.length)*100) : 0;
-                return React.createElement("div", {key:cat,style:{background:THEME.bgElevated,borderRadius:10,padding:"10px 14px",border:"1px solid "+colors.accent+"33"}},
-                  React.createElement("div", {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}},
-                    React.createElement("span", {style:{fontSize:12,fontWeight:700,color:colors.accent}}, cat),
-                    React.createElement("span", {style:{fontSize:11,color:THEME.textMuted}}, catKnown+"/"+catCards.length)
+                return React.createElement("div", {key:cat,style:{background:THEME.bgElevated,borderRadius:10,padding:"8px 12px",border:"1px solid "+colors.accent+"22"}},
+                  React.createElement("div", {style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}},
+                    React.createElement("span", {style:{fontSize:11,fontWeight:700,color:colors.accent}}, cat),
+                    React.createElement("span", {style:{fontSize:10,color:THEME.textMuted}}, catKnown+"/"+catCards.length)
                   ),
-                  React.createElement("div", {style:{height:5,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden"}},
+                  React.createElement("div", {style:{height:4,background:"rgba(255,255,255,0.06)",borderRadius:99,overflow:"hidden"}},
                     React.createElement("div", {style:{height:"100%",width:pct+"%",background:colors.accent,borderRadius:99,transition:"width 0.4s ease"}})
                   ),
-                  catUnk > 0 && React.createElement("div", {style:{fontSize:10,color:"#ef4444",marginTop:4}}, "🔄 "+catUnk+" לחזרה")
+                  catUnk > 0 && React.createElement("div", {style:{fontSize:9,color:"#ef4444",marginTop:3}}, "🔄 "+catUnk+" לחזרה")
                 );
               })
             )
           ),
-          // Keyboard hint
-          React.createElement("div", {style:{textAlign:"center",fontSize:11,color:THEME.textMuted,marginTop:16}},
-            "מקשי קיצור: ← → לניווט | רווח להפיכה"
+
+          // Keyboard/swipe hints
+          React.createElement("div", {style:{textAlign:"center",fontSize:10,color:THEME.textMuted+"88",marginTop:14}},
+            "מקשי קיצור: ← → לניווט | רווח להפיכה | החלק לצדדים במובייל"
           )
         )
   );
@@ -3830,9 +3898,8 @@ function ResearchMethodsTool() {
       `), /*#__PURE__*/React.createElement("div", {
     ref: contentRef,
     style: {
-      maxWidth: 750,
       margin: "0 auto",
-      padding: isMobile ? "0 10px" : "0 16px",
+      padding: isMobile ? "0 10px" : "0 20px",
       position: "relative",
       zIndex: 1,
       minHeight: "100vh"
